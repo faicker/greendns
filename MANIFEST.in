@@ -1,0 +1,9 @@
+include LICENSE
+include MANIFEST.in
+include README.md
+recursive-include util *
+recursive-include tests *
+graft etc
+global-exclude *~
+global-exclude *.pyc
+global-exclude .gitignore
