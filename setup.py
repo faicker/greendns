@@ -13,7 +13,6 @@ setup(name='pychinadns',
           'Topic :: Software Development :: Libraries',
           'License :: OSI Approved :: MIT License',
           'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
       ],
       entry_points = {
@@ -23,7 +22,7 @@ setup(name='pychinadns',
       },
       packages=find_packages(exclude=['tests', 'util', 'etc']),
       data_files=[('etc/pychinadns/', ['etc/pychinadns/chnroute.txt']),
-                  ('/etc/pychinadns/', ['etc/pychinadns/iplist.txt'])],
+                  ('etc/pychinadns/', ['etc/pychinadns/iplist.txt'])],
       long_description=open('README.md').read(),
       zip_safe=False,
-      setup_requires=['argparse', 'dnslib'])
+      install_requires=['dnslib>=0.9.7'])
