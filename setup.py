@@ -6,7 +6,7 @@ setup(name='pychinadns',
       license='MIT',
       author='faicker.mo',
       author_email='faicker.mo@gmail.com',
-      description='Nonpoisonous and CDN-friendly Recursive DNS Resolver',
+      description='A nonpoisonous and CDN-friendly Recursive DNS Resolver',
       classifiers=[
           'Development Status :: 1 - Production/Stable',
           'Intended Audience :: Developers',
