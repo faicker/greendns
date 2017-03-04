@@ -52,9 +52,10 @@ class Forwarder(object):
         is_timeout = (now - req.send_ts >= self.timeout)
         if len(req.server_resps) == req.server_num or is_timeout:
             resp = self.response_handler(req)
-            self.s_sock.sendto(resp, req.client_addr)
-            self.logger.debug("fd %d sendto client %s:%d, data len=%d"
-                              % (self.s_sock.fileno(), req.client_addr[0], req.client_addr[1], len(resp)))
+            if resp:
+                self.s_sock.sendto(resp, req.client_addr)
+		self.logger.debug("fd %d sendto client %s:%d, data len=%d"
+				% (self.s_sock.fileno(), req.client_addr[0], req.client_addr[1], len(resp)))
         return is_timeout
 
     def handle_timeout(self):

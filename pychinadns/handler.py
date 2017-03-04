@@ -114,7 +114,11 @@ class ChinaDNSReponseHandler(object):
 
     def __call__(self, req):
         quest_a = False
-        d = dnslib.DNSRecord.parse(req.req_data)
+        try:
+            d = dnslib.DNSRecord.parse(req.req_data)
+        except Exception as e:
+            self.logger.error("parse request error, msg=%s, data=%s" %(e, req.req_data))
+            return ""
         self.logger.debug("request detail,\n%s" %(d))
         for quest in d.questions:
             if quest.qtype == dnslib.QTYPE.A:
@@ -144,7 +148,11 @@ class ChinaDNSReponseHandler(object):
         for upstream, data in req.server_resps.iteritems():
             ip, port = upstream
             upstream_ip = struct.unpack('>I', socket.inet_aton(ip))[0]
-            d = dnslib.DNSRecord.parse(data)
+            try:
+                d = dnslib.DNSRecord.parse(data)
+            except Exception as e:
+                self.logger.error("parse response error, msg=%s, data=%s" %(e, data))
+                continue
             self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
             for rr in d.rr:
                 if rr.rtype == dnslib.QTYPE.A:
