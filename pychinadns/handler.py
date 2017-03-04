@@ -96,10 +96,11 @@ class ChinaDNSReponseHandler(object):
                 self.locals[upstream_ip] = False
                 j += 1
         if i == 0 or j == 0:
-            print("%s is invalid upstreams, at lease one local and one foreign" % args.upstream, file=sys.stderr)
+            print("%s are invalid upstreams, at lease one local and one foreign" % args.upstream, file=sys.stderr)
             sys.exit(1)
 
     def _is_in_china(self, ip):
+        '''binary search'''
         i = 0
         j = len(self.china_subs) - 1
         while (i <= j):
@@ -183,7 +184,7 @@ class ChinaDNSReponseHandler(object):
                 resp = foreign_result
         else:
             self.logger.warning("only one server response")
-            if local_result:
+            if local_result and r[0][0]:
                 resp = local_result
             elif foreign_result:
                 resp = foreign_result
