@@ -1,7 +1,7 @@
 #pychinadns
 
 A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
-You must config at least two dns servers. One is in China and the other is out of China which is not poisoned.
+You must config at least two dns servers. One is in China and the other is out of China which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port).
 
 The response is,
 
@@ -18,10 +18,16 @@ BC: not possible. use foreign dns server result
 BD: use foreign dns server result
 ```
 
-## usage
+## install
+python setup.py install
 
+## usage
 ```
-python /root/pychinadns/src/chinadns.py -r ChinaDNSReponseHandler -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /root/pychinadns/conf/chnroute.txt -b /root/pychinadns/conf/iplist.txt
+pychinadns -r ChinaDNSReponseHandler -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+```
+or
+```
+pychinadns -r ChinaDNSReponseHandler -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 
 ## configure

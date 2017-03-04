@@ -1,4 +1,17 @@
+import sys
 from setuptools import setup, find_packages
+
+if not sys.platform.startswith('linux'):
+    raise Exception("OS not supported, other than linux")
+
+py_ver = sys.version[:3]
+requires=[]
+if py_ver == '2.6':
+    requires=['argparse', 'dnslib==0.8.3']
+elif py_ver == '2.7':
+    requires=['dnslib']
+else:
+    raise Exception("python version %s not supported" %(py_ver))
 
 setup(name='pychinadns',
       version='0.1',
@@ -13,6 +26,7 @@ setup(name='pychinadns',
           'Topic :: Software Development :: Libraries',
           'License :: OSI Approved :: MIT License',
           'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
       ],
       entry_points = {
@@ -25,4 +39,4 @@ setup(name='pychinadns',
                   ('etc/pychinadns/', ['etc/pychinadns/iplist.txt'])],
       long_description=open('README.md').read(),
       zip_safe=False,
-      install_requires=['dnslib>=0.9.7'])
+      install_requires=requires)
