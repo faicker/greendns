@@ -19,7 +19,7 @@ BD: use foreign dns server result
 ```
 
 ## install
-python setup.py install
+pip install .
 
 ## usage
 ```
