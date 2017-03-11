@@ -1,9 +1,6 @@
 import sys
 from setuptools import setup, find_packages
 
-if not sys.platform.startswith('linux'):
-    raise Exception("OS not supported, other than linux")
-
 py_ver = sys.version[:3]
 requires=[]
 if py_ver == '2.6':
