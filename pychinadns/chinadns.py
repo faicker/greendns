@@ -72,6 +72,9 @@ class ChinaDNS(object):
                             type=check_loglevel,
                             help="Specify log level, debug|info|warning|error",
                             default="info")
+        parser.add_argument("-m", "--mode", dest="mode",
+                            help="Specify io loop mode, select|epoll",
+                            default="select")
         args.handler.add_arg(parser)
         parser.parse_args(remaining_argv, namespace=args)
 
@@ -79,6 +82,10 @@ class ChinaDNS(object):
             args.listen = "127.0.0.1:%s" % (args.port)
         else:
             args.listen = args.port
+
+        if len(argv) == 1:
+            parser.print_help()
+            sys.exit(1)
         return args
 
     def setup_logger(self):
@@ -97,6 +104,7 @@ class ChinaDNS(object):
         self.resolver = forwarder.Forwarder(self.args.upstream,
                                             self.args.listen,
                                             self.args.timeout,
+                                            self.args.mode,
                                             h)
         self.resolver.run_forever()
 
