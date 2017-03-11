@@ -8,13 +8,17 @@ import socket
 import argparse
 import dnslib
 
+
 class QuickestResponseHandler(object):
     def __init__(self):
         pass
+
     def add_arg(self, parser):
         pass
+
     def init(self, args):
         pass
+
     def __call__(self, req):
         resp = ""
         if req.server_num > 0:
@@ -26,6 +30,7 @@ class QuickestResponseHandler(object):
                     least_upstream = upstream
             resp = req.server_resps[least_upstream]
         return resp
+
 
 class ChinaDNSReponseHandler(object):
     '''
@@ -45,7 +50,7 @@ class ChinaDNSReponseHandler(object):
         self.china_subs = []
         self.blackips = set()
         self.logger = logging.getLogger()
-        self.locals = {}                    # big-endian ip -> is_local(True/False)
+        self.locals = {}          # big-endian ip -> is_local(True/False)
 
     def add_arg(self, parser):
         parser.add_argument("-f", "--chnroute", dest="chnroute",
@@ -62,7 +67,7 @@ class ChinaDNSReponseHandler(object):
         if ip_s and mask_s:
             try:
                 ip = struct.unpack('>I', socket.inet_aton(ip_s))[0]
-            except socket.error as e:
+            except socket.error:
                 return ()
             mask = int(mask_s)
             if mask < 0 and mask > 32:
@@ -96,7 +101,8 @@ class ChinaDNSReponseHandler(object):
                 self.locals[upstream_ip] = False
                 j += 1
         if i == 0 or j == 0:
-            print("%s are invalid upstreams, at lease one local and one foreign" % args.upstream, file=sys.stderr)
+            print("%s are invalid upstreams, at lease one local and one foreign"
+                  % args.upstream, file=sys.stderr)
             sys.exit(1)
 
     def _is_in_china(self, ip):
@@ -118,9 +124,10 @@ class ChinaDNSReponseHandler(object):
         try:
             d = dnslib.DNSRecord.parse(req.req_data)
         except Exception as e:
-            self.logger.error("parse request error, msg=%s, data=%s" %(e, req.req_data))
+            self.logger.error("parse request error, msg=%s, data=%s"
+                              % (e, req.req_data))
             return ""
-        self.logger.debug("request detail,\n%s" %(d))
+        self.logger.debug("request detail,\n%s" % (d))
         for quest in d.questions:
             if quest.qtype == dnslib.QTYPE.A:
                 quest_a = True
@@ -152,7 +159,8 @@ class ChinaDNSReponseHandler(object):
             try:
                 d = dnslib.DNSRecord.parse(data)
             except Exception as e:
-                self.logger.error("parse response error, msg=%s, data=%s" %(e, data))
+                self.logger.error("parse response error, msg=%s, data=%s"
+                                  % (e, data))
                 continue
             self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
             for rr in d.rr:

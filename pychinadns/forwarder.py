@@ -5,7 +5,6 @@ import socket
 import select
 import time
 import logging
-import errno
 
 
 class Request(object):
@@ -21,6 +20,7 @@ class Request(object):
 
 class Forwarder(object):
     BUFSIZE = 2048
+
     def __init__(self, upstreams, listen, timeout, response_handler):
         self.logger = logging.getLogger()
         self.upstreams = []
@@ -44,7 +44,8 @@ class Forwarder(object):
         try:
             self.s_sock.bind(self.listen_addr)
         except socket.error as e:
-            self.logger.error("error to bind to %s:%d, %s" % (self.listen_addr[0], self.listen_addr[1], e))
+            self.logger.error("error to bind to %s:%d, %s"
+                              % (self.listen_addr[0], self.listen_addr[1], e))
             sys.exit(1)
 
     def should_response(self, req):
@@ -54,8 +55,10 @@ class Forwarder(object):
             resp = self.response_handler(req)
             if resp:
                 self.s_sock.sendto(resp, req.client_addr)
-		self.logger.debug("fd %d sendto client %s:%d, data len=%d"
-				% (self.s_sock.fileno(), req.client_addr[0], req.client_addr[1], len(resp)))
+        self.logger.debug("fd %d sendto client %s:%d, data len=%d"
+                          % (self.s_sock.fileno(),
+                             req.client_addr[0], req.client_addr[1],
+                             len(resp)))
         return is_timeout
 
     def handle_timeout(self):
@@ -76,7 +79,7 @@ class Forwarder(object):
         self.epoll.register(self.s_sock.fileno(), select.EPOLLIN)
         while True:
             events = self.epoll.poll(1)
-            #handle timeout
+            # handle timeout
             self.handle_timeout()
             for fileno, event in events:
                 if fileno in self.requests:
@@ -84,7 +87,7 @@ class Forwarder(object):
                     req = self.requests[fileno]
                     if fileno in req.server_conns:
                         sock = req.server_conns[fileno]
-                        data, remote_addr = sock.recvfrom(self.__class__.BUFSIZE)
+                        data, remote_addr = sock.recvfrom(self.BUFSIZE)
                         self.epoll.unregister(fileno)
                         sock.close()
                         del self.requests[fileno]
@@ -97,7 +100,7 @@ class Forwarder(object):
                             self.should_response(req)
                 elif fileno == self.s_sock.fileno():
                     # request from client
-                    data, remote_addr = self.s_sock.recvfrom(self.__class__.BUFSIZE)
+                    data, remote_addr = self.s_sock.recvfrom(self.BUFSIZE)
                     self.logger.debug("fd %d recvfrom client %s:%d, data len=%d"
                                       % (fileno, remote_addr[0], remote_addr[1], len(data)))
                     if data:
