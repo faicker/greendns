@@ -120,5 +120,5 @@ class Forwarder(object):
         self.init_listen_sock()
         self.ioloop.Register(self.s_sock.fileno(), ioloop.EV_READ,
                              self.handle_request_from_client)
-        self.ioloop.SetTimer(self.timeout, self.check_timeout)
+        self.ioloop.AddTimer(self.timeout, self.check_timeout)
         self.ioloop.Run()

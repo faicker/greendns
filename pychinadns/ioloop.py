@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
-import time
 import select
-
+import timer
 
 EV_READ = 1
 EV_WRITE = 2
@@ -15,8 +14,7 @@ class IOLoop(object):
         self.rd_fds = {}    # fd -> callback
         self.wr_fds = {}
         self.err_callback = None
-        self.timers = {}
-        self.ts = 0
+        self.tm = timer.TimerManager()
 
     def Register(self, fd, events, callback):
         if events & EV_READ:
@@ -40,14 +38,10 @@ class IOLoop(object):
         pass
 
     def _CheckTimer(self):
-        now = int(time.time())
-        for callback, (seconds, next_ts) in self.timers.iteritems():
-            if next_ts == now:
-                callback()
-                self.timers[callback][1] += seconds
+        self.tm.CheckTimer()
 
-    def SetTimer(self, seconds, callback):
-        self.timers[callback] = [seconds, int(time.time()) + seconds]
+    def AddTimer(self, seconds, callback):
+        self.tm.AddTimer(seconds, callback)
 
 
 class Select(IOLoop):
