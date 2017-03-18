@@ -50,7 +50,7 @@ class ChinaDNSReponseHandler(object):
         self.china_subs = []
         self.blackips = set()
         self.logger = logging.getLogger()
-        self.locals = {}          # big-endian ip -> is_local(True/False)
+        self.locals = {}          # str_ip -> is_local(True/False)
 
     def add_arg(self, parser):
         parser.add_argument("-f", "--chnroute", dest="chnroute",
@@ -93,20 +93,33 @@ class ChinaDNSReponseHandler(object):
         i, j = 0, 0
         for upstream in args.upstream.split(','):
             ip, port = upstream.split(':')
-            upstream_ip = struct.unpack('>I', socket.inet_aton(ip))[0]
-            if self._is_in_china(upstream_ip):
-                self.locals[upstream_ip] = True
+            if self._is_in_china(ip):
+                self.locals[ip] = True
                 i += 1
             else:
-                self.locals[upstream_ip] = False
+                self.locals[ip] = False
                 j += 1
         if i == 0 or j == 0:
             print("%s are invalid upstreams, at lease one local and one foreign"
                   % args.upstream, file=sys.stderr)
             sys.exit(1)
 
-    def _is_in_china(self, ip):
+    def _is_in_blacklist(self, str_ip):
+        try:
+            ip = struct.unpack('>I', socket.inet_aton(str_ip))[0]
+        except socket.error:
+            return False
+	if ip in self.blackips:
+            return True
+        else:
+            return False
+
+    def _is_in_china(self, str_ip):
         '''binary search'''
+        try:
+            ip = struct.unpack('>I', socket.inet_aton(str_ip))[0]
+        except socket.error:
+            return False
         i = 0
         j = len(self.china_subs) - 1
         while (i <= j):
@@ -120,7 +133,7 @@ class ChinaDNSReponseHandler(object):
         return False
 
     def __call__(self, req):
-        quest_a = False
+        quest_A = False
         try:
             d = dnslib.DNSRecord.parse(req.req_data)
         except Exception as e:
@@ -130,11 +143,11 @@ class ChinaDNSReponseHandler(object):
         self.logger.debug("request detail,\n%s" % (d))
         for quest in d.questions:
             if quest.qtype == dnslib.QTYPE.A:
-                quest_a = True
+                quest_A = True
             else:
-                quest_a = False
-        if quest_a:
-            return self._handle_a(req)
+                quest_A = False
+        if quest_A:
+            return self._handle_A(req)
         else:
             return self._handle_other(req)
 
@@ -143,19 +156,17 @@ class ChinaDNSReponseHandler(object):
         for upstream, data in req.server_resps.iteritems():
             resp = data
             ip, port = upstream
-            upstream_ip = struct.unpack('>I', socket.inet_aton(ip))[0]
-            if self.locals[upstream_ip]:
+            if self.locals[ip]:
                 return data
         return resp
 
-    def _handle_a(self, req):
+    def _handle_A(self, req):
         resp = ""
         r = [[0, 0], [0, 0]]
         local_result = None
         foreign_result = None
         for upstream, data in req.server_resps.iteritems():
             ip, port = upstream
-            upstream_ip = struct.unpack('>I', socket.inet_aton(ip))[0]
             try:
                 d = dnslib.DNSRecord.parse(data)
             except Exception as e:
@@ -163,37 +174,49 @@ class ChinaDNSReponseHandler(object):
                                   % (e, data))
                 continue
             self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
-            for rr in d.rr:
-                if rr.rtype == dnslib.QTYPE.A:
-                    str_ip = str(rr.rdata)
-                    dns_ip = struct.unpack('>I', socket.inet_aton(str_ip))[0]
-                    if dns_ip in self.blackips:
-                        break
-                    if self.locals[upstream_ip]:
-                        local_result = data
-                        if self._is_in_china(dns_ip):
-                            r[0][0] = 1
-                            self.logger.info("local server %s:%d returned local addr %s" % (ip, port, str_ip))
-                        else:
-                            r[0][1] = 1
-                            self.logger.info("local server %s:%d returned foreign addr %s" % (ip, port, str_ip))
-                    else:
-                        foreign_result = data
-                        if not self._is_in_china(dns_ip):
-                            r[1][0] = 1
-                            self.logger.info("foregin server %s:%d returned foreign addr %s" % (ip, port, str_ip))
-                        else:
-                            r[1][1] = 1
-                            self.logger.info("foregin server %s:%d returned local addr %s" % (ip, port, str_ip))
+            if self.locals[ip]:
+                str_ip = self._parse_A(d)
+                if self._is_in_blacklist(str_ip):
+                    continue
+                local_result = data
+                if not str_ip:
+                    continue
+                if self._is_in_china(str_ip):
+                    r[0][0] = 1
+                    self.logger.info("local server %s:%d returned local addr %s" % (ip, port, str_ip))
+                else:
+                    r[0][1] = 1
+                    self.logger.info("local server %s:%d returned foreign addr %s" % (ip, port, str_ip))
+            else:
+                str_ip = self._parse_A(d)
+                if self._is_in_blacklist(str_ip):
+                    continue
+                foreign_result = data
+                if not str_ip:
+                    continue
+                if not self._is_in_china(str_ip):
+                    r[1][0] = 1
+                    self.logger.info("foregin server %s:%d returned foreign addr %s" % (ip, port, str_ip))
+                else:
+                    r[1][1] = 1
+                    self.logger.info("foregin server %s:%d returned local addr %s" % (ip, port, str_ip))
         if local_result and foreign_result:
             if r[0][0]:
                 resp = local_result
-            elif r[0][1]:
+            else:
                 resp = foreign_result
-        else:
-            self.logger.warning("only one server response")
-            if local_result and r[0][0]:
+        elif local_result:
+            if r[0][0] or (r[0][0] ^ r[0][1] == 0):
                 resp = local_result
-            elif foreign_result:
-                resp = foreign_result
+        elif foreign_result:
+            resp = foreign_result
         return resp
+
+    def _parse_A(self, record):
+        '''parse first A record'''
+        str_ip = ""
+        for rr in record.rr:
+            if rr.rtype == dnslib.QTYPE.A:
+                str_ip = str(rr.rdata)
+	        break
+        return str_ip
