@@ -109,7 +109,7 @@ class ChinaDNSReponseHandler(object):
             ip = struct.unpack('>I', socket.inet_aton(str_ip))[0]
         except socket.error:
             return False
-	if ip in self.blackips:
+        if ip in self.blackips:
             return True
         else:
             return False
@@ -218,5 +218,5 @@ class ChinaDNSReponseHandler(object):
         for rr in record.rr:
             if rr.rtype == dnslib.QTYPE.A:
                 str_ip = str(rr.rdata)
-	        break
+                break
         return str_ip

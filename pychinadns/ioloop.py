@@ -37,7 +37,7 @@ class IOLoop(object):
     def Run(self):
         pass
 
-    def _CheckTimer(self):
+    def CheckTimer(self):
         self.tm.CheckTimer()
 
     def AddTimer(self, seconds, callback):
@@ -71,7 +71,7 @@ class Select(IOLoop):
         if len(self.rlist) == 0 and len(self.wlist) == 0:
             return
         while True:
-            self._CheckTimer()
+            self.CheckTimer()
             (rl, wl, el) = select.select(self.rlist, self.wlist, self.elist,
                                          self.MIN_INTERVAL)
             for fd in rl:
@@ -110,7 +110,7 @@ class Epoll(IOLoop):
 
     def Run(self):
         while True:
-            self._CheckTimer()
+            self.CheckTimer()
             events = self.epoll.poll(self.MIN_INTERVAL)
             for fd, event in events:
                 if event & select.EPOLLERR or event & select.EPOLLHUP:

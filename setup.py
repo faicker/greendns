@@ -1,17 +1,19 @@
 import sys
 from setuptools import setup, find_packages
 
+APP_VERSION = '0.3'
+
 py_ver = sys.version[:3]
-requires=[]
+requires = []
 if py_ver == '2.6':
-    requires=['argparse', 'dnslib==0.8.3']
+    requires = ['argparse', 'dnslib==0.8.3']
 elif py_ver == '2.7':
-    requires=['dnslib']
+    requires = ['dnslib']
 else:
-    raise Exception("python version %s not supported" %(py_ver))
+    raise Exception("python version %s not supported" % (py_ver))
 
 setup(name='pychinadns',
-      version='0.1',
+      version=APP_VERSION,
       url='https://github.com/faicker/pychinadns',
       license='MIT',
       author='faicker.mo',
@@ -26,9 +28,9 @@ setup(name='pychinadns',
           'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
       ],
-      entry_points = {
-          'console_scripts' : [
-          'pychinadns = pychinadns.chinadns:main'
+      entry_points={
+          'console_scripts': [
+              'pychinadns = pychinadns.chinadns:main'
           ],
       },
       packages=find_packages(exclude=['tests', 'util', 'etc']),
