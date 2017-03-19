@@ -54,7 +54,12 @@ class Forwarder(object):
         if len(req.server_resps) == req.server_num or is_timeout:
             resp = self.response_handler(req)
             if resp:
-                self.s_sock.sendto(resp, req.client_addr)
+                try:
+                    self.s_sock.sendto(resp, req.client_addr)
+                except socket.error as e:
+                    self.logger.error("sendto %s:%d failed. error=%s"
+                                      % (req.client_addr[0], req.client_addr[1], e))
+                    return
                 self.logger.debug("fd %d sendto client %s:%d, data len=%d"
                                   % (self.s_sock.fileno(),
                                      req.client_addr[0], req.client_addr[1],
@@ -105,9 +110,15 @@ class Forwarder(object):
             req.server_num = len(self.upstreams)
             req.req_data = data
             for server_addr in self.upstreams:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.setblocking(0)
-                sock.sendto(data, server_addr)
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock.setblocking(0)
+                    sock.sendto(data, server_addr)
+                except socket.error as e:
+                    self.logger.error("sendto %s:%d failed. error=%s"
+                                      % (server_addr[0], server_addr[1], e))
+                    sock.close()
+                    continue
                 self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
                                   % (sock.fileno(), server_addr[0],
                                      server_addr[1], len(data)))

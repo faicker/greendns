@@ -2,6 +2,7 @@
 # coding=utf-8
 import select
 import timer
+import traceback
 
 EV_READ = 1
 EV_WRITE = 2
@@ -71,18 +72,21 @@ class Select(IOLoop):
         if len(self.rlist) == 0 and len(self.wlist) == 0:
             return
         while True:
-            self.CheckTimer()
-            (rl, wl, el) = select.select(self.rlist, self.wlist, self.elist,
-                                         self.MIN_INTERVAL)
-            for fd in rl:
-                if fd in self.rd_fds:
-                    self.rd_fds[fd](fd)
-            for fd in wl:
-                if fd in self.wr_fds:
-                    self.wr_fds[fd](fd)
-            if self.err_callback:
-                for fd in el:
-                    self.err_callback(fd)
+            try:
+                self.CheckTimer()
+                (rl, wl, el) = select.select(self.rlist, self.wlist,
+                                             self.elist, self.MIN_INTERVAL)
+                for fd in rl:
+                    if fd in self.rd_fds:
+                        self.rd_fds[fd](fd)
+                for fd in wl:
+                    if fd in self.wr_fds:
+                        self.wr_fds[fd](fd)
+                if self.err_callback:
+                    for fd in el:
+                        self.err_callback(fd)
+            except Exception as e:
+                print("exception, %s\n%s" % (e, traceback.format_exc()))
 
 
 class Epoll(IOLoop):
@@ -110,18 +114,21 @@ class Epoll(IOLoop):
 
     def Run(self):
         while True:
-            self.CheckTimer()
-            events = self.epoll.poll(self.MIN_INTERVAL)
-            for fd, event in events:
-                if event & select.EPOLLERR or event & select.EPOLLHUP:
-                    if self.err_callback:
-                        self.err_callback(fd)
-                elif event & select.EPOLLIN:
-                    if fd in self.rd_fds:
-                        self.rd_fds[fd](fd)
-                elif event & select.EPOLLOUT:
-                    if fd in self.wr_fds:
-                        self.wr_fds[fd](fd)
+            try:
+                self.CheckTimer()
+                events = self.epoll.poll(self.MIN_INTERVAL)
+                for fd, event in events:
+                    if event & select.EPOLLERR or event & select.EPOLLHUP:
+                        if self.err_callback:
+                            self.err_callback(fd)
+                    elif event & select.EPOLLIN:
+                        if fd in self.rd_fds:
+                            self.rd_fds[fd](fd)
+                    elif event & select.EPOLLOUT:
+                        if fd in self.wr_fds:
+                            self.wr_fds[fd](fd)
+            except Exception as e:
+                print("exception, %s\n%s" % (e, traceback.format_exc()))
 
 
 def GetIOLoop(name="select"):
