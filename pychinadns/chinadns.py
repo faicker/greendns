@@ -1,11 +1,10 @@
-#!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import sys
+import os
 import logging
 import inspect
 import argparse
 import forwarder
-import handler
 
 str2level = {
     "debug": logging.DEBUG,
@@ -21,15 +20,31 @@ def check_loglevel(value):
     return value
 
 
+def load_mod(name):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    handler_path = dir_path + "/handler"
+    sys.path.append(handler_path)
+    n = "handler_" + name
+    try:
+        mod = __import__(n)
+    except ImportError as e:
+        print("err=%s, can't import file %s" % (e, n))
+        sys.exit(1)
+    sys.path.remove(handler_path)
+    return mod
+
+
 def check_handler(value):
     h = None
-    for name in dir(handler):
-        if name == value:
-            cls = getattr(handler, name)
-            if inspect.isclass(cls):
-                h = cls()
-                if callable(h):
-                    return h
+    base_mod = load_mod("base")
+    base_cls = getattr(base_mod, "HandlerBase")
+    mod = load_mod(value)
+    for v in dir(mod):
+        cls = getattr(mod, v)
+        if inspect.isclass(cls) and issubclass(cls, base_cls):
+            h = cls()
+            if callable(h):
+                return h
     if h is None:
         raise argparse.ArgumentTypeError("%s is an invalid handler" % value)
 
@@ -50,8 +65,9 @@ class ChinaDNS(object):
             add_help=False,
         )
         handle_parser.add_argument("-r", "--handler", type=check_handler,
-                                   help="Specify response handler, QuickestResponseHandler|ChinaDNSReponseHandler",
-                                   default="QuickestResponseHandler")
+                                   help="Specify response handler,\
+                                   quickest|chinadns",
+                                   default="quickest")
         args, remaining_argv = handle_parser.parse_known_args()
 
         parser = argparse.ArgumentParser(
@@ -100,7 +116,8 @@ class ChinaDNS(object):
 
     def start_resolver(self):
         h = self.args.handler
-        h.init(self.args)
+        h.init(self.args.upstream,
+               self.args.chnroute, self.args.blacklist, self.args.rfc1918)
         self.resolver = forwarder.Forwarder(self.args.upstream,
                                             self.args.listen,
                                             self.args.timeout,

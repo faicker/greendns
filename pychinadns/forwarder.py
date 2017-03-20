@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import sys
 import socket
 import time
@@ -35,7 +34,7 @@ class Forwarder(object):
         self.s_sock = None
         self.requests = {}      # fileno -> Request
         self.response_handler = response_handler
-        self.ioloop = ioloop.GetIOLoop(mode)
+        self.ioloop = ioloop.get_ioloop(mode)
 
     def init_listen_sock(self):
         self.s_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -74,7 +73,7 @@ class Forwarder(object):
                 self.logger.debug("request to upstream fd %d timeout"
                                   % (fileno))
                 sock = req.server_conns[fileno]
-                self.ioloop.Unregister(fileno)
+                self.ioloop.unregister(fileno)
                 sock.close()
                 to_delete.append(fileno)
         for fileno in to_delete:
@@ -85,7 +84,7 @@ class Forwarder(object):
         if fileno in req.server_conns:
             sock = req.server_conns[fileno]
             data, remote_addr = sock.recvfrom(self.BUFSIZE)
-            self.ioloop.Unregister(fileno)
+            self.ioloop.unregister(fileno)
             sock.close()
             del self.requests[fileno]
             self.logger.debug("requests size=%d" % (len(self.requests)))
@@ -122,14 +121,14 @@ class Forwarder(object):
                 self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
                                   % (sock.fileno(), server_addr[0],
                                      server_addr[1], len(data)))
-                self.ioloop.Register(sock.fileno(), ioloop.EV_READ,
+                self.ioloop.register(sock.fileno(), ioloop.EV_READ,
                                      self.handle_response_from_upstream)
                 req.server_conns[sock.fileno()] = sock
                 self.requests[sock.fileno()] = req
 
     def run_forever(self):
         self.init_listen_sock()
-        self.ioloop.Register(self.s_sock.fileno(), ioloop.EV_READ,
+        self.ioloop.register(self.s_sock.fileno(), ioloop.EV_READ,
                              self.handle_request_from_client)
-        self.ioloop.AddTimer(self.timeout, self.check_timeout)
-        self.ioloop.Run()
+        self.ioloop.add_timer(self.timeout, self.check_timeout)
+        self.ioloop.run()

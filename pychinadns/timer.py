@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import time
 import Queue
 
@@ -14,7 +13,7 @@ class Timer(object):
     def __lt__(self, other):
         return self.next_run_ts < other.next_run_ts
 
-    def Run(self):
+    def run(self):
         self.callback()
         self.next_run_ts += self.interval
 
@@ -23,11 +22,11 @@ class TimerManager(object):
     def __init__(self):
         self.timers = Queue.PriorityQueue()
 
-    def AddTimer(self, interval, callback, is_once=False):
+    def add_timer(self, interval, callback, is_once=False):
         t = Timer(time.time(), interval, callback, is_once)
         self.timers.put(t)
 
-    def CheckTimer(self):
+    def check_timer(self):
         now_ts = time.time()
         readd = []
         while not self.timers.empty():
@@ -35,7 +34,7 @@ class TimerManager(object):
             if now_ts < t.next_run_ts:
                 break
             self.timers.get()
-            t.Run()
+            t.run()
             if not t.is_once:
                 readd.append(t)
         for t in readd:

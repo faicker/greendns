@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import select
 import timer
 import traceback
@@ -17,32 +16,32 @@ class IOLoop(object):
         self.err_callback = None
         self.tm = timer.TimerManager()
 
-    def Register(self, fd, events, callback):
+    def register(self, fd, events, callback):
         if events & EV_READ:
             self.rd_fds[fd] = callback
         if events & EV_WRITE:
             self.wr_fds[fd] = callback
         return True
 
-    def Unregister(self, fd):
+    def unregister(self, fd):
         if fd in self.rd_fds:
             del self.rd_fds[fd]
         if fd in self.wr_fds:
             del self.wr_fds[fd]
         return True
 
-    def SetErrCallback(self, callback):
+    def set_err_callback(self, callback):
         self.err_callback = callback
         return True
 
-    def Run(self):
+    def run(self):
         pass
 
-    def CheckTimer(self):
-        self.tm.CheckTimer()
+    def check_timer(self):
+        self.tm.check_timer()
 
-    def AddTimer(self, seconds, callback):
-        self.tm.AddTimer(seconds, callback)
+    def add_timer(self, seconds, callback):
+        self.tm.add_timer(seconds, callback)
 
 
 class Select(IOLoop):
@@ -52,28 +51,28 @@ class Select(IOLoop):
         self.wlist = []
         self.elist = []
 
-    def _make_list(self):
+    def __make_list(self):
         self.rlist = self.rd_fds.keys()
         self.wlist = self.wr_fds.keys()
         s = set(self.rd_fds.keys() + self.wr_fds.keys())
         self.elist = [f for f in s]
 
-    def Register(self, fd, events, callback):
-        super(Select, self).Register(fd, events, callback)
-        self._make_list()
+    def register(self, fd, events, callback):
+        super(Select, self).register(fd, events, callback)
+        self.__make_list()
         return True
 
-    def Unregister(self, fd):
-        super(Select, self).Unregister(fd)
-        self._make_list()
+    def unregister(self, fd):
+        super(Select, self).unregister(fd)
+        self.__make_list()
         return True
 
-    def Run(self):
+    def run(self):
         if len(self.rlist) == 0 and len(self.wlist) == 0:
             return
         while True:
             try:
-                self.CheckTimer()
+                self.check_timer()
                 (rl, wl, el) = select.select(self.rlist, self.wlist,
                                              self.elist, self.MIN_INTERVAL)
                 for fd in rl:
@@ -94,7 +93,7 @@ class Epoll(IOLoop):
         super(Epoll, self).__init__()
         self.epoll = select.epoll()
 
-    def Register(self, fd, events, callback):
+    def register(self, fd, events, callback):
         ev = select.EPOLLERR | select.EPOLLHUP
         if events & EV_READ:
             ev |= select.EPOLLIN
@@ -104,18 +103,18 @@ class Epoll(IOLoop):
             self.epoll.register(fd, ev)
         except IOError:
             return False
-        super(Epoll, self).Register(fd, events, callback)
+        super(Epoll, self).register(fd, events, callback)
         return True
 
-    def Unregister(self, fd):
-        super(Epoll, self).Unregister(fd)
+    def unregister(self, fd):
+        super(Epoll, self).unregister(fd)
         self.epoll.unregister(fd)
         return True
 
-    def Run(self):
+    def run(self):
         while True:
             try:
-                self.CheckTimer()
+                self.check_timer()
                 events = self.epoll.poll(self.MIN_INTERVAL)
                 for fd, event in events:
                     if event & select.EPOLLERR or event & select.EPOLLHUP:
@@ -131,7 +130,7 @@ class Epoll(IOLoop):
                 print("exception, %s\n%s" % (e, traceback.format_exc()))
 
 
-def GetIOLoop(name="select"):
+def get_ioloop(name="select"):
     if name == "epoll":
         return Epoll()
     elif name == "select":
