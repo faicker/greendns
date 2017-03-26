@@ -6,21 +6,10 @@ import logging
 import ioloop
 
 
-class Request(object):
-    def __init__(self):
-        self.client_addr = ""     # client addr
-        self.req_data = None      # client request
-        self.send_ts = 0          # ts to send to upstream
-        self.server_num = 0       # upstream server number
-        self.server_conns = {}    # fileno -> sock
-        self.server_resps = {}    # upstream server addr -> data
-        self.resp_ts = {}         # upstream server addr -> ts
-
-
 class Forwarder(object):
     BUFSIZE = 2048
 
-    def __init__(self, upstreams, listen, timeout, mode, response_handler):
+    def __init__(self, upstreams, listen, timeout, mode, handler):
         self.logger = logging.getLogger()
         self.upstreams = []
         for upstream in upstreams.split(','):
@@ -33,7 +22,7 @@ class Forwarder(object):
         self.timeout = timeout
         self.s_sock = None
         self.requests = {}      # fileno -> Request
-        self.response_handler = response_handler
+        self.handler = handler
         self.ioloop = ioloop.get_ioloop(mode)
 
     def init_listen_sock(self):
@@ -47,28 +36,24 @@ class Forwarder(object):
                               % (self.listen_addr[0], self.listen_addr[1], e))
             sys.exit(1)
 
-    def should_response(self, req):
-        now = time.time()
-        is_timeout = (now - req.send_ts >= self.timeout)
-        if len(req.server_resps) == req.server_num or is_timeout:
-            resp = self.response_handler(req)
-            if resp:
-                try:
-                    self.s_sock.sendto(resp, req.client_addr)
-                except socket.error as e:
-                    self.logger.error("sendto %s:%d failed. error=%s"
-                                      % (req.client_addr[0], req.client_addr[1], e))
-                    return
-                self.logger.debug("fd %d sendto client %s:%d, data len=%d"
-                                  % (self.s_sock.fileno(),
-                                     req.client_addr[0], req.client_addr[1],
-                                     len(resp)))
-        return is_timeout
+    def send_response(self, client_addr, resp):
+        try:
+            self.s_sock.sendto(resp, client_addr)
+        except socket.error as e:
+            self.logger.error("sendto %s:%d failed. error=%s"
+                              % (client_addr[0], client_addr[1], e))
+            return
+        self.logger.debug("fd %d sendto client %s:%d, data len=%d"
+                          % (self.s_sock.fileno(),
+                             client_addr[0], client_addr[1],
+                             len(resp)))
 
     def check_timeout(self):
         to_delete = []
         for fileno, req in self.requests.iteritems():
-            is_timeout = self.should_response(req)
+            is_timeout, resp = self.handler.on_timeout(req, self.timeout)
+            if resp:
+                self.send_response(req.client_addr, resp)
             if is_timeout:
                 self.logger.debug("request to upstream fd %d timeout"
                                   % (fileno))
@@ -81,50 +66,57 @@ class Forwarder(object):
 
     def handle_response_from_upstream(self, fileno):
         req = self.requests[fileno]
-        if fileno in req.server_conns:
-            sock = req.server_conns[fileno]
-            data, remote_addr = sock.recvfrom(self.BUFSIZE)
-            self.ioloop.unregister(fileno)
-            sock.close()
-            del self.requests[fileno]
-            self.logger.debug("requests size=%d" % (len(self.requests)))
-            if data:
-                self.logger.debug("fd %d recvfrom upstream %s:%d, data len=%d"
-                                  % (fileno, remote_addr[0], remote_addr[1],
-                                     len(data)))
-                req.server_resps[remote_addr] = data
-                req.resp_ts[remote_addr] = time.time()
-                self.should_response(req)
+        sock = req.server_conns.get(fileno)
+        if not sock:
+            return
+        data, remote_addr = sock.recvfrom(self.BUFSIZE)
+        self.ioloop.unregister(fileno)
+        sock.close()
+        del self.requests[fileno]
+        if data:
+            self.logger.debug("fd %d recvfrom upstream %s:%d, data len=%d"
+                              % (fileno, remote_addr[0], remote_addr[1],
+                                 len(data)))
+            req.server_resps[remote_addr] = data
+            resp = self.handler.on_upstream_response(req)
+            if resp:
+                self.send_response(req.client_addr, resp)
+        self.logger.debug("upstream request size=%d" % (len(self.requests)))
 
     def handle_request_from_client(self, fileno):
+        assert self.s_sock.fileno() == fileno
         data, remote_addr = self.s_sock.recvfrom(self.BUFSIZE)
         self.logger.debug("fd %d recvfrom client %s:%d, data len=%d"
                           % (self.s_sock.fileno(),
                              remote_addr[0], remote_addr[1],
                              len(data)))
-        if data:
-            req = Request()
-            req.client_addr = remote_addr
-            req.send_ts = time.time()
-            req.server_num = len(self.upstreams)
-            req.req_data = data
-            for server_addr in self.upstreams:
-                try:
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    sock.setblocking(0)
-                    sock.sendto(data, server_addr)
-                except socket.error as e:
-                    self.logger.error("sendto %s:%d failed. error=%s"
-                                      % (server_addr[0], server_addr[1], e))
-                    sock.close()
-                    continue
-                self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
-                                  % (sock.fileno(), server_addr[0],
-                                     server_addr[1], len(data)))
-                self.ioloop.register(sock.fileno(), ioloop.EV_READ,
-                                     self.handle_response_from_upstream)
-                req.server_conns[sock.fileno()] = sock
-                self.requests[sock.fileno()] = req
+        if len(data) == 0:
+            return
+        req = self.handler.get_request()
+        req.client_addr = remote_addr
+        req.send_ts = time.time()
+        req.server_num = len(self.upstreams)
+        req.req_data = data
+        if not self.handler.on_client_request(req):
+            self.logger.error("invalid request from client")
+            return
+        for server_addr in self.upstreams:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.setblocking(0)
+                sock.sendto(data, server_addr)
+            except socket.error as e:
+                self.logger.error("sendto %s:%d failed. error=%s"
+                                  % (server_addr[0], server_addr[1], e))
+                sock.close()
+                continue
+            self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
+                              % (sock.fileno(), server_addr[0],
+                                 server_addr[1], len(data)))
+            self.ioloop.register(sock.fileno(), ioloop.EV_READ,
+                                 self.handle_response_from_upstream)
+            req.server_conns[sock.fileno()] = sock
+            self.requests[sock.fileno()] = req
 
     def run_forever(self):
         self.init_listen_sock()

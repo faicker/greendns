@@ -2,13 +2,23 @@
 from __future__ import print_function
 import sys
 import logging
+import time
 import argparse
 import dnslib
+import request
 import chinanet
 import handler_base
 
 
-class ChinaDNSReponseHandler(handler_base.HandlerBase):
+class ChinaDNSRequest(request.Request):
+    def __init__(self):
+        super(ChinaDNSRequest, self).__init__()
+        self.q_A = False
+        self.dns_req = None
+        self.responsed = False
+
+
+class ChinaDNSHandler(handler_base.HandlerBase):
     '''
         First filter poisoned ip with block iplist.
         Second,
@@ -51,37 +61,61 @@ class ChinaDNSReponseHandler(handler_base.HandlerBase):
                 self.locals[ip] = False
                 j += 1
         if i == 0 or j == 0:
-            print("%s are invalid upstreams, at lease one local and one foreign"
-                  % s_upstream, file=sys.stderr)
+            print("%s are invalid upstreams, at lease one local and one foreign" % (s_upstream), file=sys.stderr)
             sys.exit(1)
 
-    def __call__(self, req):
-        quest_A = False
+    def get_request(self):
+        return ChinaDNSRequest()
+
+    def on_client_request(self, req):
         try:
             d = dnslib.DNSRecord.parse(req.req_data)
         except Exception as e:
             self.logger.error("parse request error, msg=%s, data=%s"
                               % (e, req.req_data))
-            return ""
+            return False
         self.logger.debug("request detail,\n%s" % (d))
         for quest in d.questions:
             if quest.qtype == dnslib.QTYPE.A:
-                quest_A = True
-            else:
-                quest_A = False
-        if quest_A:
+                req.q_A = True
+                break
+        req.dns_req = d
+        return True
+
+    def on_upstream_response(self, req):
+        if req.q_A and len(req.server_resps) < req.server_num:
+            return ""
+        else:
+            return self.handle(req)
+
+    def on_timeout(self, req, timeout):
+        is_timeout, resp = False, None
+        if time.time() >= req.send_ts + timeout:
+            is_timeout = True
+            resp = self.handle(req)
+        return (is_timeout, resp)
+
+    def handle(self, req):
+        if req.responsed:
+            return ""
+        if req.q_A:
             return self.__handle_A(req)
         else:
             return self.__handle_other(req)
 
     def __handle_other(self, req):
-        resp = ""
         for upstream, data in req.server_resps.iteritems():
-            resp = data
             ip, port = upstream
-            if self.locals[ip]:
-                return data
-        return resp
+            try:
+                d = dnslib.DNSRecord.parse(data)
+                self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
+            except Exception as e:
+                self.logger.error("parse response error, msg=%s, data=%s"
+                                  % (e, data))
+                return ""
+            req.responsed = True
+            return data
+        return ""
 
     def __handle_A(self, req):
         resp = ""
