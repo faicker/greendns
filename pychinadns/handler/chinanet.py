@@ -13,7 +13,10 @@ class ChinaNet(object):
             if l and h:
                 self.china_subs.append((l, h))
         for ip in blacklists:
-            self.blackips.add(struct.unpack('>I', socket.inet_aton(ip))[0])
+            try:
+                self.blackips.add(struct.unpack('>I', socket.inet_aton(ip))[0])
+            except socket.error:
+                continue
         if using_rfc1918:
             self.china_subs.append(self.convert("192.168.0.0/16"))
             self.china_subs.append(self.convert("10.0.0.0/8"))
@@ -26,10 +29,10 @@ class ChinaNet(object):
             try:
                 ip = struct.unpack('>I', socket.inet_aton(ip_s))[0]
             except socket.error:
-                return ()
+                return (-1, -1)
             mask = int(mask_s)
-            if mask < 0 and mask > 32:
-                return ()
+            if mask < 0 or mask > 32:
+                return (-1, -1)
             hex_mask = 0xffffffff - (1 << (32 - mask)) + 1
             lowest = ip & hex_mask
             highest = lowest + (1 << (32 - mask)) - 1
