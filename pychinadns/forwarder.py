@@ -9,7 +9,7 @@ import ioloop
 class Forwarder(object):
     BUFSIZE = 2048
 
-    def __init__(self, upstreams, listen, timeout, mode, handler):
+    def __init__(self, io_engine, upstreams, listen, timeout, handler):
         self.logger = logging.getLogger()
         self.upstreams = []
         for upstream in upstreams.split(','):
@@ -22,8 +22,8 @@ class Forwarder(object):
         self.timeout = timeout
         self.s_sock = None
         self.requests = {}      # fileno -> Request
+        self.io_engine = io_engine
         self.handler = handler
-        self.ioloop = ioloop.get_ioloop(mode)
 
     def init_listen_sock(self):
         self.s_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -58,7 +58,7 @@ class Forwarder(object):
                 self.logger.debug("request to upstream fd %d timeout"
                                   % (fileno))
                 sock = req.server_conns[fileno]
-                self.ioloop.unregister(fileno)
+                self.io_engine.unregister(fileno)
                 sock.close()
                 to_delete.append(fileno)
         for fileno in to_delete:
@@ -70,7 +70,7 @@ class Forwarder(object):
         if not sock:
             return
         data, remote_addr = sock.recvfrom(self.BUFSIZE)
-        self.ioloop.unregister(fileno)
+        self.io_engine.unregister(fileno)
         sock.close()
         del self.requests[fileno]
         if data:
@@ -97,7 +97,11 @@ class Forwarder(object):
         req.send_ts = time.time()
         req.server_num = len(self.upstreams)
         req.req_data = data
-        if not self.handler.on_client_request(req):
+        is_continue, resp = self.handler.on_client_request(req)
+        if resp:
+            self.send_response(req.client_addr, resp)
+            return
+        if not is_continue:
             self.logger.error("invalid request from client")
             return
         for server_addr in self.upstreams:
@@ -113,14 +117,14 @@ class Forwarder(object):
             self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
                               % (sock.fileno(), server_addr[0],
                                  server_addr[1], len(data)))
-            self.ioloop.register(sock.fileno(), ioloop.EV_READ,
-                                 self.handle_response_from_upstream)
+            self.io_engine.register(sock.fileno(), ioloop.EV_READ,
+                                    self.handle_response_from_upstream)
             req.server_conns[sock.fileno()] = sock
             self.requests[sock.fileno()] = req
 
     def run_forever(self):
         self.init_listen_sock()
-        self.ioloop.register(self.s_sock.fileno(), ioloop.EV_READ,
-                             self.handle_request_from_client)
-        self.ioloop.add_timer(self.timeout, self.check_timeout)
-        self.ioloop.run()
+        self.io_engine.register(self.s_sock.fileno(), ioloop.EV_READ,
+                                self.handle_request_from_client)
+        self.io_engine.add_timer(False, self.timeout, self.check_timeout)
+        self.io_engine.run()

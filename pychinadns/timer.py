@@ -4,17 +4,19 @@ import Queue
 
 
 class Timer(object):
-    def __init__(self, now_ts, interval, callback, is_once):
+    def __init__(self, now_ts, is_once, interval, callback, *args, **kwargs):
         self.interval = interval
         self.callback = callback
         self.is_once = is_once
+        self.args = args
+        self.kwargs = kwargs
         self.next_run_ts = now_ts + interval
 
     def __lt__(self, other):
         return self.next_run_ts < other.next_run_ts
 
     def run(self):
-        self.callback()
+        self.callback(*self.args, **self.kwargs)
         self.next_run_ts += self.interval
 
 
@@ -22,8 +24,8 @@ class TimerManager(object):
     def __init__(self):
         self.timers = Queue.PriorityQueue()
 
-    def add_timer(self, interval, callback, is_once=False):
-        t = Timer(time.time(), interval, callback, is_once)
+    def add_timer(self, is_once, interval, callback, *args, **kwargs):
+        t = Timer(time.time(), is_once, interval, callback, *args, **kwargs)
         self.timers.put(t)
 
     def check_timer(self):

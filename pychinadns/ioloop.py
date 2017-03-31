@@ -40,8 +40,8 @@ class IOLoop(object):
     def check_timer(self):
         self.tm.check_timer()
 
-    def add_timer(self, seconds, callback):
-        self.tm.add_timer(seconds, callback)
+    def add_timer(self, is_once, seconds, callback, *args, **kwargs):
+        self.tm.add_timer(is_once, seconds, callback, *args, **kwargs)
 
 
 class Select(IOLoop):

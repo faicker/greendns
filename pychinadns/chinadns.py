@@ -5,6 +5,8 @@ import logging
 import inspect
 import argparse
 import forwarder
+import ioloop
+
 
 str2level = {
     "debug": logging.DEBUG,
@@ -21,16 +23,12 @@ def check_loglevel(value):
 
 
 def load_mod(name):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    handler_path = dir_path + "/handler"
-    sys.path.append(handler_path)
     n = "handler_" + name
     try:
         mod = __import__(n)
     except ImportError as e:
         print("err=%s, can't import file %s" % (e, n))
         sys.exit(1)
-    sys.path.remove(handler_path)
     return mod
 
 
@@ -42,9 +40,7 @@ def check_handler(value):
     for v in dir(mod):
         cls = getattr(mod, v)
         if inspect.isclass(cls) and issubclass(cls, base_cls):
-            h = cls()
-            if callable(h):
-                return h
+            return cls()
     if h is None:
         raise argparse.ArgumentTypeError("%s is an invalid handler" % value)
 
@@ -60,21 +56,18 @@ class ChinaDNS(object):
     def parse_config(self, argv=None):
         if argv is None:
             argv = sys.argv
-        handle_parser = argparse.ArgumentParser(
+        parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
             add_help=False,
         )
-        handle_parser.add_argument("-r", "--handler", type=check_handler,
-                                   help="Specify response handler,\
-                                   quickest|chinadns",
-                                   default="quickest")
-        args, remaining_argv = handle_parser.parse_known_args()
+        parser.add_argument("-h", "--help", action="store_true")
+        parser.add_argument("-r", "--handler", type=check_handler,
+                            help="Specify handler class, chinadns")
+        args, remaining_argv = parser.parse_known_args()
+        if args.handler is None:
+            parser.print_help()
+            sys.exit(0)
 
-        parser = argparse.ArgumentParser(
-            description=__doc__,
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            parents=[handle_parser]
-        )
         parser.add_argument("-p", "--port",
                             help="Specify listen port or ip",
                             default="127.0.0.1:5353")
@@ -91,17 +84,17 @@ class ChinaDNS(object):
         parser.add_argument("-m", "--mode", dest="mode",
                             help="Specify io loop mode, select|epoll",
                             default="select")
+        _, remaining_argv = parser.parse_known_args(namespace=args)
         args.handler.add_arg(parser)
-        parser.parse_args(remaining_argv, namespace=args)
+        if args.help:
+            parser.print_help()
+            sys.exit(0)
+        args.handler.parse_arg(parser, remaining_argv, args)
 
         if args.port.find(':') == -1:
             args.listen = "127.0.0.1:%s" % (args.port)
         else:
             args.listen = args.port
-
-        if len(argv) == 1:
-            parser.print_help()
-            sys.exit(1)
         return args
 
     def setup_logger(self):
@@ -115,13 +108,12 @@ class ChinaDNS(object):
         return logger
 
     def start_resolver(self):
+        io_engine = ioloop.get_ioloop(self.args.mode)
         h = self.args.handler
-        h.init(self.args.upstream,
-               self.args.chnroute, self.args.blacklist, self.args.rfc1918)
-        self.resolver = forwarder.Forwarder(self.args.upstream,
+        h.init(io_engine)
+        self.resolver = forwarder.Forwarder(io_engine, self.args.upstream,
                                             self.args.listen,
                                             self.args.timeout,
-                                            self.args.mode,
                                             h)
         self.resolver.run_forever()
 

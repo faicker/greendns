@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from pychinadns.handler.chinanet import ChinaNet
+from pychinadns.chinanet import ChinaNet
 
 
 def test_convert():

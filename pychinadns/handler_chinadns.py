@@ -8,13 +8,14 @@ import dnslib
 import request
 import chinanet
 import handler_base
+import cache
 
 
 class ChinaDNSRequest(request.Request):
     def __init__(self):
         super(ChinaDNSRequest, self).__init__()
-        self.q_A = False
-        self.dns_req = None
+        self.qtype = 0
+        self.qname = ""
         self.responsed = False
 
 
@@ -35,24 +36,36 @@ class ChinaDNSHandler(handler_base.HandlerBase):
     def __init__(self):
         self.logger = logging.getLogger()
         self.cnet = None
+        self.cache_enabled = False
+        self.cache = cache.Cache()
         self.locals = {}          # str_ip -> is_local(True/False)
 
     def add_arg(self, parser):
         parser.add_argument("-f", "--chnroute", dest="chnroute",
                             type=argparse.FileType('r'), required=True,
                             help="Specify chnroute file")
-        parser.add_argument("--rfc1918", dest="rfc1918", action="store_true",
-                            help="Specify if rfc1918 ip is local")
         parser.add_argument("-b", "--blacklist", dest="blacklist",
                             type=argparse.FileType('r'), required=True,
                             help="Specify ip blacklist file")
+        parser.add_argument("--rfc1918", dest="rfc1918", action="store_true",
+                            help="Specify if rfc1918 ip is local")
+        parser.add_argument("--cache", dest="cache", action="store_true",
+                            help="Specify if cache is enabled")
 
-    def init(self, s_upstream, f_chnroute, f_blacklist, using_rfc1918):
-        self.cnet = chinanet.ChinaNet(f_chnroute,
-                                      f_blacklist,
-                                      using_rfc1918)
+    def parse_arg(self, parser, remaining_argv, args):
+        myargs = parser.parse_args(remaining_argv)
+        self.s_upstream = args.upstream
+        self.f_chnroute = myargs.chnroute
+        self.f_blacklist = myargs.blacklist
+        self.using_rfc1918 = myargs.rfc1918
+        self.cache_enabled = myargs.cache
+
+    def init(self, io_engine):
+        self.cnet = chinanet.ChinaNet(self.f_chnroute,
+                                      self.f_blacklist,
+                                      self.using_rfc1918)
         i, j = 0, 0
-        for upstream in s_upstream.split(','):
+        for upstream in self.s_upstream.split(','):
             ip, port = upstream.split(':')
             if self.cnet.is_in_china(ip):
                 self.locals[ip] = True
@@ -64,44 +77,64 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             print("%s are invalid upstreams, at lease one local and one foreign" % (s_upstream), file=sys.stderr)
             sys.exit(1)
 
+        if self.cache_enabled:
+            io_engine.add_timer(False, 1800, self.cache.validate)
+
     def get_request(self):
         return ChinaDNSRequest()
 
     def on_client_request(self, req):
+        is_continue, raw_resp = False, ""
         try:
             d = dnslib.DNSRecord.parse(req.req_data)
         except Exception as e:
             self.logger.error("parse request error, msg=%s, data=%s"
                               % (e, req.req_data))
-            return False
+            return (is_continue, raw_resp)
         self.logger.debug("request detail,\n%s" % (d))
-        for quest in d.questions:
-            if quest.qtype == dnslib.QTYPE.A:
-                req.q_A = True
-                break
-        req.dns_req = d
-        return True
+        if len(d.questions) == 0:
+            return (is_continue, raw_resp)
+        qtype = d.questions[0].qtype
+        qname = str(d.questions[0].qname)
+        tid = d.header.id
+        if self.cache_enabled:
+            resp = self.cache.find((qname, qtype))
+            if resp:
+                r = self.__replace_id(resp, tid)
+                self.logger.debug("cache hit, response detail,\n%s" % (r))
+                raw_resp = str(r.pack())
+                return (is_continue, raw_resp)
+        req.qtype = qtype
+        req.qname = qname
+        is_continue = True
+        return (is_continue, raw_resp)
 
     def on_upstream_response(self, req):
-        if req.q_A and len(req.server_resps) < req.server_num:
+        if req.qtype == dnslib.QTYPE.A and len(req.server_resps) < req.server_num:
             return ""
         else:
             return self.handle(req)
 
     def on_timeout(self, req, timeout):
-        is_timeout, resp = False, None
+        is_timeout, raw_resp = False, ""
         if time.time() >= req.send_ts + timeout:
             is_timeout = True
-            resp = self.handle(req)
-        return (is_timeout, resp)
+            raw_resp = self.handle(req)
+        return (is_timeout, raw_resp)
 
     def handle(self, req):
         if req.responsed:
             return ""
-        if req.q_A:
-            return self.__handle_A(req)
+        if req.qtype == dnslib.QTYPE.A:
+            resp = self.__handle_A(req)
         else:
-            return self.__handle_other(req)
+            resp = self.__handle_other(req)
+        if self.cache_enabled and resp and resp.rr:
+            ttl = resp.rr[0].ttl
+            self.cache.add((req.qname, req.qtype), resp, ttl)
+            self.logger.debug("add to cache, key=(%s, %d), ttl=%d" %
+                              (req.qname, req.qtype, ttl))
+        return str(resp.pack())
 
     def __handle_other(self, req):
         for upstream, data in req.server_resps.iteritems():
@@ -112,14 +145,14 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             except Exception as e:
                 self.logger.error("parse response error, msg=%s, data=%s"
                                   % (e, data))
-                return ""
+                return None
             req.responsed = True
-            return data
-        return ""
+            return d
+        return None
 
     def __handle_A(self, req):
-        resp = ""
         r = [[0, 0], [0, 0]]
+        resp = None
         local_result = None
         foreign_result = None
         for upstream, data in req.server_resps.iteritems():
@@ -135,7 +168,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 str_ip = self.__parse_A(d)
                 if self.cnet.is_in_blacklist(str_ip):
                     continue
-                local_result = data
+                local_result = d
                 if not str_ip:
                     continue
                 if self.cnet.is_in_china(str_ip):
@@ -148,7 +181,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 str_ip = self.__parse_A(d)
                 if self.cnet.is_in_blacklist(str_ip):
                     continue
-                foreign_result = data
+                foreign_result = d
                 if not str_ip:
                     continue
                 if not self.cnet.is_in_china(str_ip):
@@ -177,3 +210,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 str_ip = str(rr.rdata)
                 break
         return str_ip
+
+    def __replace_id(self, resp, new_tid):
+        resp.header.id = new_tid
+        return resp
