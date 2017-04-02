@@ -23,12 +23,15 @@ def check_loglevel(value):
 
 
 def load_mod(name):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    sys.path.append(dir_path)
     n = "handler_" + name
     try:
         mod = __import__(n)
     except ImportError as e:
         print("err=%s, can't import file %s" % (e, n))
         sys.exit(1)
+    sys.path.remove(dir_path)
     return mod
 
 

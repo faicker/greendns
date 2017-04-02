@@ -106,13 +106,15 @@ class Forwarder(object):
             return
         for server_addr in self.upstreams:
             try:
+                sock = None
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.setblocking(0)
                 sock.sendto(data, server_addr)
             except socket.error as e:
                 self.logger.error("sendto %s:%d failed. error=%s"
                                   % (server_addr[0], server_addr[1], e))
-                sock.close()
+                if sock:
+                    sock.close()
                 continue
             self.logger.debug("fd %d sendto upstream %s:%d, data len=%d"
                               % (sock.fileno(), server_addr[0],

@@ -129,12 +129,15 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             resp = self.__handle_A(req)
         else:
             resp = self.__handle_other(req)
-        if self.cache_enabled and resp and resp.rr:
-            ttl = resp.rr[0].ttl
-            self.cache.add((req.qname, req.qtype), resp, ttl)
-            self.logger.debug("add to cache, key=(%s, %d), ttl=%d" %
-                              (req.qname, req.qtype, ttl))
-        return str(resp.pack())
+        if resp:
+            if self.cache_enabled and resp.rr:
+                ttl = resp.rr[0].ttl
+                self.cache.add((req.qname, req.qtype), resp, ttl)
+                self.logger.debug("add to cache, key=(%s, %d), ttl=%d" %
+                                  (req.qname, req.qtype, ttl))
+            return str(resp.pack())
+        else:
+            return ""
 
     def __handle_other(self, req):
         for upstream, data in req.server_resps.iteritems():
