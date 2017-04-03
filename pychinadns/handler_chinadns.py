@@ -74,7 +74,11 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 self.locals[ip] = False
                 j += 1
         if i == 0 or j == 0:
-            print("%s are invalid upstreams, at lease one local and one foreign" % (s_upstream), file=sys.stderr)
+            print(
+                "%s are invalid upstreams, "
+                "at lease one local and one foreign"
+                % (self.s_upstream),
+                file=sys.stderr)
             sys.exit(1)
 
         if self.cache_enabled:
@@ -110,7 +114,8 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         return (is_continue, raw_resp)
 
     def on_upstream_response(self, req):
-        if req.qtype == dnslib.QTYPE.A and len(req.server_resps) < req.server_num:
+        if (req.qtype == dnslib.QTYPE.A and
+                len(req.server_resps) < req.server_num):
             return ""
         else:
             return self.handle(req)
@@ -131,10 +136,13 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             resp = self.__handle_other(req)
         if resp:
             if self.cache_enabled and resp.rr:
-                ttl = resp.rr[0].ttl
-                self.cache.add((req.qname, req.qtype), resp, ttl)
-                self.logger.debug("add to cache, key=(%s, %d), ttl=%d" %
-                                  (req.qname, req.qtype, ttl))
+                for answer in resp.rr:
+                    if answer.rtype == req.qtype:
+                        ttl = answer.ttl
+                        self.cache.add((req.qname, req.qtype), resp, ttl)
+                        self.logger.debug(
+                            "add to cache, key=(%s, %d), ttl=%d"
+                            % (req.qname, req.qtype, ttl))
             return str(resp.pack())
         else:
             return ""
@@ -176,10 +184,14 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                     continue
                 if self.cnet.is_in_china(str_ip):
                     r[0][0] = 1
-                    self.logger.info("local server %s:%d returned local addr %s" % (ip, port, str_ip))
+                    self.logger.info(
+                        "local server %s:%d returned local addr %s"
+                        % (ip, port, str_ip))
                 else:
                     r[0][1] = 1
-                    self.logger.info("local server %s:%d returned foreign addr %s" % (ip, port, str_ip))
+                    self.logger.info(
+                        "local server %s:%d returned foreign addr %s"
+                        % (ip, port, str_ip))
             else:
                 str_ip = self.__parse_A(d)
                 if self.cnet.is_in_blacklist(str_ip):
@@ -189,10 +201,14 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                     continue
                 if not self.cnet.is_in_china(str_ip):
                     r[1][0] = 1
-                    self.logger.info("foregin server %s:%d returned foreign addr %s" % (ip, port, str_ip))
+                    self.logger.info(
+                        "foregin server %s:%d returned foreign addr %s"
+                        % (ip, port, str_ip))
                 else:
                     r[1][1] = 1
-                    self.logger.info("foregin server %s:%d returned local addr %s" % (ip, port, str_ip))
+                    self.logger.info(
+                        "foregin server %s:%d returned local addr %s"
+                        % (ip, port, str_ip))
         if local_result and foreign_result:
             if r[0][0]:
                 resp = local_result
