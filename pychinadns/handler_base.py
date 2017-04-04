@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import request
+from pychinadns import request
 
 
 class HandlerBase(object):

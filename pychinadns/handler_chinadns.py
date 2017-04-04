@@ -5,10 +5,10 @@ import logging
 import time
 import argparse
 import dnslib
-import request
-import chinanet
-import handler_base
-import cache
+from pychinadns import request
+from pychinadns import chinanet
+from pychinadns import handler_base
+from pychinadns import cache
 
 
 class ChinaDNSRequest(request.Request):
@@ -104,10 +104,9 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         if self.cache_enabled:
             resp = self.cache.find((qname, qtype))
             if resp:
-                r = self.__replace_id(resp, tid)
-                self.logger.debug("cache hit, response detail,\n%s" % (r))
-                raw_resp = str(r.pack())
-                return (is_continue, raw_resp)
+                self.__replace_id(resp, tid)
+                self.logger.debug("cache hit, response detail,\n%s" % (resp))
+                return (is_continue, bytes(resp.pack()))
         req.qtype = qtype
         req.qname = qname
         is_continue = True
@@ -143,12 +142,13 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                         self.logger.debug(
                             "add to cache, key=(%s, %d), ttl=%d"
                             % (req.qname, req.qtype, ttl))
-            return str(resp.pack())
+                        break
+            return bytes(resp.pack())
         else:
             return ""
 
     def __handle_other(self, req):
-        for upstream, data in req.server_resps.iteritems():
+        for upstream, data in req.server_resps.items():
             ip, port = upstream
             try:
                 d = dnslib.DNSRecord.parse(data)
@@ -166,7 +166,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         resp = None
         local_result = None
         foreign_result = None
-        for upstream, data in req.server_resps.iteritems():
+        for upstream, data in req.server_resps.items():
             ip, port = upstream
             try:
                 d = dnslib.DNSRecord.parse(data)

@@ -20,7 +20,7 @@ def init_chinadns_request(chinadns, qname, qtype):
     r.client_addr = ("127.0.0.1", 50453)
     r.send_ts = time.time()
     r.server_num = len(chinadns.locals)
-    r.req_data = str(q.pack())
+    r.req_data = bytes(q.pack())
     return r
 
 
@@ -79,12 +79,12 @@ def test_on_upstream_response_BD(chinadns):
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("216.58.200.46"),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("172.217.24.14")
-    r.server_resps[("127.0.0.1", 5454)] = str(res.pack())
+    r.server_resps[("127.0.0.1", 5454)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
@@ -99,12 +99,12 @@ def test_on_upstream_response_AD(chinadns):
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("183.136.212.50"),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("184.85.123.14")
-    r.server_resps[("127.0.0.1", 5454)] = str(res.pack())
+    r.server_resps[("127.0.0.1", 5454)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
@@ -119,12 +119,12 @@ def test_on_upstream_response_AC(chinadns):
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("219.146.244.91"),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("120.132.59.101")
-    r.server_resps[("127.0.0.1", 5454)] = str(res.pack())
+    r.server_resps[("127.0.0.1", 5454)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
@@ -139,12 +139,12 @@ def test_on_upstream_response_BC(chinadns):
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("8.8.8.8"),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("1.2.4.8")
-    r.server_resps[("127.0.0.1", 5454)] = str(res.pack())
+    r.server_resps[("127.0.0.1", 5454)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
@@ -161,7 +161,7 @@ def test_on_upstream_response_not_A(chinadns):
                                        rtype=dnslib.QTYPE.CNAME,
                                        rdata=dnslib.CNAME(qresult),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
@@ -194,7 +194,7 @@ def test_on_timeout_with_one_response(chinadns):
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("101.226.103.106"),
                                        ttl=3))
-    r.server_resps[("223.5.5.5", 53)] = str(res.pack())
+    r.server_resps[("223.5.5.5", 53)] = bytes(res.pack())
     time.sleep(1)
     is_timeout, resp = chinadns.on_timeout(r, 1)
     assert is_timeout

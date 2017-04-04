@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import handler_base
-import request
+from pychinadns import handler_base
+from pychinadns import request
 
 
 class QuickestRequest(request.Request):
@@ -15,7 +15,7 @@ class QuickestHandler(handler_base.HandlerBase):
 
     def on_upstream_response(self, req):
         if not req.responsed:
-            for upstream, data in req.server_resps.iteritems():
+            for upstream, data in req.server_resps.items():
                 req.responsed = True
                 return data
         return ""

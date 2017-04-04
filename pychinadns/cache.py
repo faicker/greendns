@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import six
 
 
 class Cache(object):
@@ -10,7 +11,7 @@ class Cache(object):
         return len(self.m)
 
     def iteritems(self):
-        return self.m.iteritems()
+        return six.iteritems(self.m)
 
     def add(self, key, value, ttl):
         self.m[key] = (value, time.time() + ttl)
@@ -31,7 +32,7 @@ class Cache(object):
 
     def validate(self):
         expired_key = []
-        for k, v in self.m.iteritems():
+        for k, v in six.iteritems(self.m):
             value, expire_ts = v
             if time.time() >= expire_ts:
                 expired_key.append(k)

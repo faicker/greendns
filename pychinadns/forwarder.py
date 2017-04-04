@@ -3,7 +3,7 @@ import sys
 import socket
 import time
 import logging
-import ioloop
+from pychinadns import ioloop
 
 
 class Forwarder(object):
@@ -50,7 +50,7 @@ class Forwarder(object):
 
     def check_timeout(self):
         to_delete = []
-        for fileno, req in self.requests.iteritems():
+        for fileno, req in self.requests.items():
             is_timeout, resp = self.handler.on_timeout(req, self.timeout)
             if resp:
                 self.send_response(req.client_addr, resp)

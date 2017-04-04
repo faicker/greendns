@@ -52,9 +52,9 @@ class Select(IOLoop):
         self.elist = []
 
     def __make_list(self):
-        self.rlist = self.rd_fds.keys()
-        self.wlist = self.wr_fds.keys()
-        s = set(self.rd_fds.keys() + self.wr_fds.keys())
+        self.rlist = list(self.rd_fds)
+        self.wlist = list(self.wr_fds)
+        s = set(self.rlist + self.wlist)
         self.elist = [f for f in s]
 
     def register(self, fd, events, callback):

@@ -4,13 +4,9 @@ from setuptools import setup, find_packages
 APP_VERSION = '0.3'
 
 py_ver = sys.version[:3]
-requires = []
+requires = ['dnslib', 'six']
 if py_ver == '2.6':
-    requires = ['argparse', 'dnslib==0.8.3']
-elif py_ver == '2.7':
-    requires = ['dnslib']
-else:
-    raise Exception("python version %s not supported" % (py_ver))
+    requires += ['argparse']
 
 setup(name='pychinadns',
       version=APP_VERSION,
@@ -27,6 +23,8 @@ setup(name='pychinadns',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.4',
       ],
       entry_points={
           'console_scripts': [

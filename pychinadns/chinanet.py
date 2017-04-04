@@ -57,7 +57,7 @@ class ChinaNet(object):
         i = 0
         j = len(self.china_subs) - 1
         while (i <= j):
-            k = (i + j) / 2
+            k = (i + j) // 2
             if ip > self.china_subs[k][1]:
                 i = k + 1
             elif ip < self.china_subs[k][0]:

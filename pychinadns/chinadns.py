@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
-import os
 import logging
 import inspect
 import argparse
-import forwarder
-import ioloop
+from pychinadns import forwarder
+from pychinadns import ioloop
 
 
 str2level = {
@@ -23,15 +22,12 @@ def check_loglevel(value):
 
 
 def load_mod(name):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    sys.path.append(dir_path)
     n = "handler_" + name
     try:
-        mod = __import__(n)
+        mod = __import__("pychinadns." + n, globals(), locals(), n)
     except ImportError as e:
         print("err=%s, can't import file %s" % (e, n))
         sys.exit(1)
-    sys.path.remove(dir_path)
     return mod
 
 

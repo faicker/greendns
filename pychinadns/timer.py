@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
-import Queue
+from six.moves import queue
 
 
 class Timer(object):
@@ -22,7 +22,7 @@ class Timer(object):
 
 class TimerManager(object):
     def __init__(self):
-        self.timers = Queue.PriorityQueue()
+        self.timers = queue.PriorityQueue()
 
     def add_timer(self, is_once, interval, callback, *args, **kwargs):
         t = Timer(time.time(), is_once, interval, callback, *args, **kwargs)
