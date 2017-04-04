@@ -65,7 +65,7 @@ class ChinaDNS(object):
         )
         parser.add_argument("-h", "--help", action="store_true")
         parser.add_argument("-r", "--handler", type=check_handler,
-                            help="Specify handler class, chinadns")
+                            help="Specify handler class, chinadns|quickest")
         args, remaining_argv = parser.parse_known_args()
         if args.handler is None:
             parser.print_help()

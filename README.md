@@ -3,7 +3,7 @@
 A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
 You must config at least two dns servers. One is in China and the other is out of China which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port).
 
-The response is,
+Use the response as follows,
 
 ```
 First filter poisoned ip with block iplist with -b argument.
@@ -23,27 +23,27 @@ pip install .
 
 ## usage
 ```
-pychinadns -r ChinaDNSReponseHandler -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+pychinadns -r chinadns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 or
 ```
-pychinadns -r ChinaDNSReponseHandler -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+pychinadns -r chinadns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 
 ## configure
 
-./chinadns.py -r ChinaDNSReponseHandler -h
+pychinadns -r chinadns -h
 
 ```
 usage: chinadns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
-                   [-l LOGLEVEL] -f CHNROUTE [--rfc1918] -b BLACKLIST
+                   [-l LOGLEVEL] [-m MODE] -f CHNROUTE -b BLACKLIST
+                   [--rfc1918] [--cache]
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help
   -r HANDLER, --handler HANDLER
-                        Specify response handler,
-                        QuickestResponseHandler|ChinaDNSReponseHandler
-                        (default: QuickestResponseHandler)
+                        Specify handler class, chinadns|quickest (default:
+                        None)
   -p PORT, --port PORT  Specify listen port or ip (default: 127.0.0.1:5353)
   -u UPSTREAM, --upstream UPSTREAM
                         Specify multiple upstream dns servers (default:
@@ -53,11 +53,13 @@ optional arguments:
   -l LOGLEVEL, --log-level LOGLEVEL
                         Specify log level, debug|info|warning|error (default:
                         info)
+  -m MODE, --mode MODE  Specify io loop mode, select|epoll (default: select)
   -f CHNROUTE, --chnroute CHNROUTE
                         Specify chnroute file (default: None)
-  --rfc1918             Specify if rfc1918 ip is local (default: False)
   -b BLACKLIST, --blacklist BLACKLIST
                         Specify ip blacklist file (default: None)
+  --rfc1918             Specify if rfc1918 ip is local (default: False)
+  --cache               Specify if cache is enabled (default: False)
 ```
 
 ## Acknowledgements
