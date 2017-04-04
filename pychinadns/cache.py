@@ -9,6 +9,9 @@ class Cache(object):
     def __len__(self):
         return len(self.m)
 
+    def iteritems(self):
+        return self.m.iteritems()
+
     def add(self, key, value, ttl):
         self.m[key] = (value, time.time() + ttl)
 

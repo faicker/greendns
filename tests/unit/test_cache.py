@@ -13,6 +13,12 @@ def cache():
     return c
 
 
+def test_iteritems(cache):
+    for k, (v, expire_ts) in cache.iteritems():
+        if k == 2:
+            assert v == "22"
+
+
 def test_add(cache):
     assert len(cache) == 3
 

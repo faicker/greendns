@@ -82,7 +82,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             sys.exit(1)
 
         if self.cache_enabled:
-            io_engine.add_timer(False, 1800, self.cache.validate)
+            io_engine.add_timer(False, 1, self.__decrease_ttl_one)
 
     def get_request(self):
         return ChinaDNSRequest()
@@ -233,3 +233,13 @@ class ChinaDNSHandler(handler_base.HandlerBase):
     def __replace_id(self, resp, new_tid):
         resp.header.id = new_tid
         return resp
+
+    def __decrease_ttl_one(self):
+        l = []
+        for k, (v, _) in self.cache.iteritems():
+            for rr in v.rr:
+                rr.ttl -= 1
+                if rr.ttl == 0:
+                    l.append(k)
+        for k in l:
+            self.cache.remove(k)
