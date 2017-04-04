@@ -52,13 +52,13 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         parser.add_argument("--cache", dest="cache", action="store_true",
                             help="Specify if cache is enabled")
 
-    def parse_arg(self, parser, remaining_argv, args):
+    def parse_arg(self, parser, remaining_argv, s_upstream):
         myargs = parser.parse_args(remaining_argv)
-        self.s_upstream = args.upstream
         self.f_chnroute = myargs.chnroute
         self.f_blacklist = myargs.blacklist
         self.using_rfc1918 = myargs.rfc1918
         self.cache_enabled = myargs.cache
+        self.s_upstream = s_upstream
 
     def init(self, io_engine):
         self.cnet = chinanet.ChinaNet(self.f_chnroute,
@@ -118,16 +118,16 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 len(req.server_resps) < req.server_num):
             return ""
         else:
-            return self.handle(req)
+            return self.__handle(req)
 
     def on_timeout(self, req, timeout):
         is_timeout, raw_resp = False, ""
         if time.time() >= req.send_ts + timeout:
             is_timeout = True
-            raw_resp = self.handle(req)
+            raw_resp = self.__handle(req)
         return (is_timeout, raw_resp)
 
-    def handle(self, req):
+    def __handle(self, req):
         if req.responsed:
             return ""
         if req.qtype == dnslib.QTYPE.A:

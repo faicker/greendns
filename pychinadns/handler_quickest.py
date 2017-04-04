@@ -19,6 +19,3 @@ class QuickestHandler(handler_base.HandlerBase):
                 req.responsed = True
                 return data
         return ""
-
-    def on_timeout(self, req, timeout):
-        return (True, None)

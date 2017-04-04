@@ -92,7 +92,7 @@ class ChinaDNS(object):
         if args.help:
             parser.print_help()
             sys.exit(0)
-        args.handler.parse_arg(parser, remaining_argv, args)
+        args.handler.parse_arg(parser, remaining_argv, args.upstream)
 
         if args.port.find(':') == -1:
             args.listen = "127.0.0.1:%s" % (args.port)
