@@ -12,20 +12,21 @@ setup(name='pychinadns',
       version=APP_VERSION,
       url='https://github.com/faicker/pychinadns',
       license='MIT',
+      platforms=['unix', 'linux', 'osx', 'cygwin', 'win32'],
       author='faicker.mo',
       author_email='faicker.mo@gmail.com',
-      description='A nonpoisonous and CDN-friendly Recursive DNS Resolver',
+      description='A non-poisonous and CDN-friendly Recursive DNS Resolver',
       classifiers=[
-          'Development Status :: 1 - Production/Stable',
-          'Intended Audience :: Developers',
-          'Topic :: Software Development :: Libraries',
+          'Development Status :: 5 - Production/Stable',
+          'Intended Audience :: System Administrators',
+          'Topic :: Internet :: Name Service (DNS)',
+          'Topic :: System :: Networking',
           'License :: OSI Approved :: MIT License',
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.6',
-          'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',
-      ],
+          'Operating System :: POSIX',
+          'Operating System :: Microsoft :: Windows',
+          'Operating System :: MacOS :: MacOS X'] + [
+          ('Programming Language :: Python :: %s' % x) for x in
+          '2 2.6 2.7 3 3.3 3.4 3.5 3.6'.split()],
       entry_points={
           'console_scripts': [
               'pychinadns = pychinadns.chinadns:main'

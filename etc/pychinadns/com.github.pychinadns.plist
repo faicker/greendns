@@ -17,19 +17,25 @@
         <string>-p</string>
         <string>127.0.0.1:53</string>
         <string>-r</string>
-        <string>ChinaDNSReponseHandler</string>
+        <string>chinadns</string>
         <string>-u</string>
-        <string>223.5.5.5:53,208.67.220.220:5353</string>
+        <string>223.5.5.5:53,127.0.0.1:5454</string>
         <string>-l</string>
         <string>debug</string>
         <string>-f</string>
         <string>etc/pychinadns/chnroute.txt</string>
         <string>-b</string>
         <string>etc/pychinadns/iplist.txt</string>
+        <string>--cache</string>
     </array>
     <key>StandardOutPath</key>
     <string>var/log/pychinadns.log</string>
     <key>StandardErrorPath</key>
     <string>var/log/pychinadns.log</string>
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>1024</integer>
+    </dict>
   </dict>
 </plist>
