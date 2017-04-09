@@ -99,7 +99,8 @@ class ChinaDNS(object):
         parser.add_argument("-m", "--mode", dest="mode",
                             help="Specify io loop mode, select|epoll",
                             default="select")
-        _, remaining_argv = parser.parse_known_args(remaining_argv, namespace=args)
+        _, remaining_argv = parser.parse_known_args(
+                            remaining_argv, namespace=args)
         args.handler.add_arg(parser)
         if args.help:
             parser.print_help()
@@ -124,23 +125,26 @@ class ChinaDNS(object):
         logger.setLevel(str2level[loglevel])
         self.logger = logger
 
-    def start_resolver(self):
+    def init_forwarder(self):
         io_engine = ioloop.get_ioloop(self.args.mode)
         h = self.args.handler
         h.init(io_engine)
-        self.resolver = forwarder.Forwarder(io_engine,
-                                            self.args.upstream,
-                                            self.args.listen,
-                                            self.args.timeout,
-                                            h)
-        self.resolver.run_forever()
+        self.forwarder = forwarder.Forwarder(io_engine,
+                                             self.args.upstream,
+                                             self.args.listen,
+                                             self.args.timeout,
+                                             h)
+
+    def run_forwarder(self):
+        self.forwarder.run_forever()
 
 
 def main():
     dns = ChinaDNS()
     dns.parse_config(sys.argv[1:])
     dns.setup_logger()
-    dns.start_resolver()
+    dns.init_forwarder()
+    dns.run_forwarder()
 
 if __name__ == "__main__":
     main()

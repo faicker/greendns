@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import os
+import signal
 import time
-from multiprocessing import Process, Pipe
+from multiprocessing import Process
 import socket
 import argparse
 import dnslib
@@ -10,11 +12,17 @@ from pychinadns import chinadns
 from pychinadns.handler_chinadns import ChinaDNSHandler
 
 
-server_addr1 = ("127.0.0.1", 42125)  # local
-server_addr2 = ("127.0.0.2", 42126)  # foreign
-forward_addr = ("127.0.0.1", 42153)
+def get_myip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    myip = s.getsockname()[0]
+    s.close()
+    return myip
 
+
+myip = get_myip()
 qname = "www.qq.com"
+
 
 class UdpEcho1Handler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -23,10 +31,10 @@ class UdpEcho1Handler(socketserver.BaseRequestHandler):
         id = d.header.id
         sock = self.request[1]
         res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1, id=id),
-                           q=dnslib.DNSQuestion(qname),
-                           a=dnslib.RR(qname,
-                                       rdata=dnslib.A("101.226.103.106"),
-                                       ttl=3))
+                               q=dnslib.DNSQuestion(qname),
+                               a=dnslib.RR(qname,
+                                           rdata=dnslib.A("101.226.103.106"),
+                                           ttl=3))
         sock.sendto(bytes(res.pack()), self.client_address)
 
 
@@ -37,28 +45,24 @@ class UdpEcho2Handler(socketserver.BaseRequestHandler):
         id = d.header.id
         sock = self.request[1]
         res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1, id=id),
-                           q=dnslib.DNSQuestion(qname),
-                           a=dnslib.RR(qname,
-                                       rdata=dnslib.A("182.254.8.146"),
-                                       ttl=3))
+                               q=dnslib.DNSQuestion(qname),
+                               a=dnslib.RR(qname,
+                                           rdata=dnslib.A("182.254.8.146"),
+                                           ttl=3))
         sock.sendto(bytes(res.pack()), self.client_address)
 
 
 @pytest.fixture
 def udp_server_process():
-    s1 = socketserver.UDPServer(server_addr1, UdpEcho1Handler, False)
-    s1.allow_reuse_address = True
-    s1.server_bind()
-    s1.server_activate()
+    s1 = socketserver.UDPServer(("127.0.0.1", 0), UdpEcho1Handler)
+    server_addr1 = s1.server_address
     p1 = Process(target=s1.serve_forever)
     p1.start()
-    s2 = socketserver.UDPServer(server_addr2, UdpEcho2Handler, False)
-    s2.allow_reuse_address = True
-    s2.server_bind()
-    s2.server_activate()
+    s2 = socketserver.UDPServer((myip, 0), UdpEcho2Handler)
+    server_addr2 = s2.server_address
     p2 = Process(target=s2.serve_forever)
     p2.start()
-    yield (p1, p2)
+    yield (server_addr1, server_addr2)
     p1.terminate()
     p2.terminate()
 
@@ -92,11 +96,11 @@ def test_setup_logger(dns):
     assert dns.logger
 
 
-def test_parse_config(dns):
-    dns.parse_config(["-p","127.0.0.1:42153","-r","chinadns",
-                      "-u","127.0.0.1:42125,127.0.0.2:42126","-l","debug",
-                      "-f","etc/pychinadns/chnroute.txt",
-                      "-b","etc/pychinadns/iplist.txt",
+def test_parse_config1(dns):
+    dns.parse_config(["-p", "127.0.0.1:42153", "-r", "chinadns",
+                      "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
+                      "-f", "etc/pychinadns/chnroute.txt",
+                      "-b", "etc/pychinadns/iplist.txt",
                       "--cache"])
     assert dns.args.loglevel == "debug"
     assert dns.args.mode == "select"
@@ -104,14 +108,29 @@ def test_parse_config(dns):
     assert isinstance(dns.args.handler, ChinaDNSHandler)
 
 
-def test_start_resolver(dns, udp_server_process):
-    dns.parse_config(["-p","127.0.0.1:42153","-r","chinadns",
-                      "-u","127.0.0.1:42125,127.0.0.2:42126","-l","debug",
-                      "-f","tests/unit/chnroute_test.txt",
-                      "-b","etc/pychinadns/iplist.txt",
+def test_parse_config2(dns):
+    dns.parse_config(["-p", "42153", "-r", "chinadns",
+                      "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
+                      "-f", "etc/pychinadns/chnroute.txt",
+                      "-b", "etc/pychinadns/iplist.txt",
+                      "--cache"])
+    assert dns.args.listen == "127.0.0.1:42153"
+
+
+def test_run_forwarder(dns, udp_server_process):
+    addr1, addr2 = udp_server_process
+    dns.parse_config(["-p", "127.0.0.1:0",
+                      "-r", "chinadns",
+                      "-u", "%s:%d,%s:%d" %
+                      (addr1[0], addr1[1], addr2[0], addr2[1]),
+                      "-l", "debug",
+                      "-f", "tests/unit/chnroute_test.txt",
+                      "-b", "etc/pychinadns/iplist.txt",
                       "--cache"])
     dns.setup_logger()
-    p = Process(target=dns.start_resolver)
+    dns.init_forwarder()
+    forward_addr = dns.forwarder.s_sock.getsockname()
+    p = Process(target=dns.run_forwarder)
     p.start()
     time.sleep(0.2)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -119,6 +138,15 @@ def test_start_resolver(dns, udp_server_process):
     client.sendto(bytes(q.pack()), forward_addr)
     data, _ = client.recvfrom(1024)
     d = dnslib.DNSRecord.parse(data)
-    client.close()
     assert str(d.rr[0].rdata) == "101.226.103.106"
+    assert d.rr[0].ttl == 3
+    time.sleep(1.0)
+    client.sendto(bytes(q.pack()), forward_addr)
+    data, _ = client.recvfrom(1024)
+    d = dnslib.DNSRecord.parse(data)
+    assert str(d.rr[0].rdata) == "101.226.103.106"
+    assert d.rr[0].ttl == 2
+    client.close()
+    os.kill(p.pid, signal.SIGINT)
+    time.sleep(0.1)
     p.terminate()

@@ -24,6 +24,7 @@ class Forwarder(object):
         self.requests = {}      # sock -> Request
         self.io_engine = io_engine
         self.handler = handler
+        self.s_sock = None
         self.s_sock = self.init_listen_sock(self.listen_addr)
 
     def __del__(self):
@@ -40,7 +41,7 @@ class Forwarder(object):
             sock.bind(listen_addr)
         except socket.error as e:
             print("error to bind to %s:%d, %s"
-                              % (listen_addr[0], listen_addr[1], e), file=sys.stderr)
+                  % (listen_addr[0], listen_addr[1], e), file=sys.stderr)
             sys.exit(1)
         else:
             return sock

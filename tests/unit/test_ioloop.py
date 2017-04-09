@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import os
+import signal
+import time
 import sys
 import socket
 from multiprocessing import Process, Pipe
@@ -7,7 +10,6 @@ from six.moves import socketserver
 from pychinadns import ioloop
 
 
-server_addr = ("127.0.0.1", 42125)
 if sys.platform == 'linux2':
     engines = ["select", "epoll"]
 else:
@@ -28,13 +30,10 @@ def iol(request):
 
 @pytest.fixture(scope='class')
 def udp_server_process():
-    s = socketserver.UDPServer(server_addr, UdpEchoHandler, False)
-    s.allow_reuse_address = True
-    s.server_bind()
-    s.server_activate()
+    s = socketserver.UDPServer(("127.0.0.1", 0), UdpEchoHandler)
     p = Process(target=s.serve_forever)
     p.start()
-    yield p
+    yield s.server_address
     p.terminate()
 
 
@@ -52,7 +51,7 @@ class TestIOLoop:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         iol.register(sock, ioloop.EV_WRITE, self.write_func)
         assert iol.unregister(sock)
-        iol.register(sock, ioloop.EV_READ|ioloop.EV_WRITE, self.read_func)
+        iol.register(sock, ioloop.EV_READ | ioloop.EV_WRITE, self.read_func)
         assert sock in iol.rd_socks
         assert sock in iol.wr_socks
         assert iol.unregister(sock, ioloop.EV_READ)
@@ -60,9 +59,10 @@ class TestIOLoop:
         sock.close()
 
     def test_run(self, iol, udp_server_process):
+        server_addr = udp_server_process
         parent_conn, child_conn = Pipe()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        iol.register(sock, ioloop.EV_WRITE, self.write_func, iol)
+        iol.register(sock, ioloop.EV_WRITE, self.write_func, iol, server_addr)
         iol.register(sock, ioloop.EV_READ, self.read_func, child_conn)
         p = Process(target=iol.run)
         p.start()
@@ -70,15 +70,17 @@ class TestIOLoop:
         parent_conn.close()
         iol.unregister(sock)
         sock.close()
+        os.kill(p.pid, signal.SIGINT)
+        time.sleep(0.1)
         p.terminate()
 
-    def write_func(self, sock, iol):
-        sock.sendto("hello\n", server_addr)
+    def write_func(self, sock, iol, server_addr):
+        sock.sendto(b"hello\n", server_addr)
         iol.unregister(sock, ioloop.EV_WRITE)
 
     def read_func(self, sock, child_conn):
         (data, _) = sock.recvfrom(1024)
-        assert data == "hello\n"
+        assert data == b"hello\n"
         child_conn.send(True)
         child_conn.close()
         sock.close()
