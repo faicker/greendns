@@ -12,8 +12,9 @@ class IOEngineMock(object):
         pass
 
 
-def init_chinadns_request(chinadns, qname, qtype):
+def init_chinadns_request(chinadns, qname, qtype, id=1234):
     q = dnslib.DNSRecord.question(qname)
+    q.header.id = id
     r = chinadns.get_request()
     r.qname = qname
     r.qtype = qtype
@@ -51,7 +52,8 @@ def test_on_client_request_without_cached(chinadns):
 
 def test_on_client_request_with_cached(chinadns):
     qname = "qq.com"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    id = 1024
+    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A, id)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
@@ -61,6 +63,8 @@ def test_on_client_request_with_cached(chinadns):
     is_continue, raw_resp = chinadns.on_client_request(r)
     assert not is_continue
     assert raw_resp
+    d = dnslib.DNSRecord.parse(raw_resp)
+    assert d.header.id == id
 
 
 def test_on_client_request_with_cache_expired(chinadns):

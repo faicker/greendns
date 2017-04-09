@@ -24,7 +24,10 @@ class ChinaNet(object):
         self.china_subs.sort()
 
     def convert(self, net):
-        (ip_s, mask_s) = net.split('/')
+        parts = net.split('/')
+        if len(parts) != 2:
+            return (-1, -1)
+        ip_s, mask_s = parts[0], parts[1]
         if ip_s and mask_s:
             try:
                 ip = struct.unpack('>I', socket.inet_aton(ip_s))[0]

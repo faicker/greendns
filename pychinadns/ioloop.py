@@ -11,27 +11,27 @@ class IOLoop(object):
     MIN_INTERVAL = 0.05
 
     def __init__(self):
-        self.rd_fds = {}    # fd -> callback
-        self.wr_fds = {}
+        self.rd_socks = {}    # sock -> callback
+        self.wr_socks = {}
         self.err_callback = None
         self.tm = timer.TimerManager()
 
-    def register(self, fd, events, callback):
+    def register(self, sock, events, callback, *args, **kwargs):
         if events & EV_READ:
-            self.rd_fds[fd] = callback
+            self.rd_socks[sock] = (callback, args, kwargs)
         if events & EV_WRITE:
-            self.wr_fds[fd] = callback
+            self.wr_socks[sock] = (callback, args, kwargs)
         return True
 
-    def unregister(self, fd):
-        if fd in self.rd_fds:
-            del self.rd_fds[fd]
-        if fd in self.wr_fds:
-            del self.wr_fds[fd]
+    def unregister(self, sock, events=EV_READ | EV_WRITE):
+        if events & EV_READ:
+            self.rd_socks.pop(sock, None)
+        if events & EV_WRITE:
+            self.wr_socks.pop(sock, None)
         return True
 
-    def set_err_callback(self, callback):
-        self.err_callback = callback
+    def set_err_callback(self, callback, *args, **kwargs):
+        self.err_callback = (callback, args, kwargs)
         return True
 
     def run(self):
@@ -52,18 +52,18 @@ class Select(IOLoop):
         self.elist = []
 
     def __make_list(self):
-        self.rlist = list(self.rd_fds)
-        self.wlist = list(self.wr_fds)
+        self.rlist = list(self.rd_socks)
+        self.wlist = list(self.wr_socks)
         s = set(self.rlist + self.wlist)
         self.elist = [f for f in s]
 
-    def register(self, fd, events, callback):
-        super(Select, self).register(fd, events, callback)
+    def register(self, sock, events, callback, *args, **kwargs):
+        super(Select, self).register(sock, events, callback, *args, **kwargs)
         self.__make_list()
         return True
 
-    def unregister(self, fd):
-        super(Select, self).unregister(fd)
+    def unregister(self, sock, events=EV_READ | EV_WRITE):
+        super(Select, self).unregister(sock, events)
         self.__make_list()
         return True
 
@@ -75,15 +75,18 @@ class Select(IOLoop):
                 self.check_timer()
                 (rl, wl, el) = select.select(self.rlist, self.wlist,
                                              self.elist, self.MIN_INTERVAL)
-                for fd in rl:
-                    if fd in self.rd_fds:
-                        self.rd_fds[fd](fd)
-                for fd in wl:
-                    if fd in self.wr_fds:
-                        self.wr_fds[fd](fd)
+                for sock in rl:
+                    callback, args, kwargs = self.rd_socks.get(sock)
+                    if callback:
+                        callback(sock, *args, **kwargs)
+                for sock in wl:
+                    callback, args, kwargs = self.wr_socks.get(sock)
+                    if callback:
+                        callback(sock, *args, **kwargs)
                 if self.err_callback:
-                    for fd in el:
-                        self.err_callback(fd)
+                    for sock in el:
+                        self.err_callback[0](sock, *self.err_callback[1],
+                                             **self.err_callback[2])
             except Exception as e:
                 print("exception, %s\n%s" % (e, traceback.format_exc()))
 
@@ -92,24 +95,51 @@ class Epoll(IOLoop):
     def __init__(self):
         super(Epoll, self).__init__()
         self.epoll = select.epoll()
+        self.fd2socks = {}
 
-    def register(self, fd, events, callback):
+    def register(self, sock, events, callback, *args, **kwargs):
         ev = select.EPOLLERR | select.EPOLLHUP
+        need_modify = False
+        if sock in self.rd_socks:
+            ev |= select.EPOLLIN
+            need_modify = True
+        if sock in self.wr_socks:
+            ev |= select.EPOLLOUT
+            need_modify = True
         if events & EV_READ:
             ev |= select.EPOLLIN
         if events & EV_WRITE:
             ev |= select.EPOLLOUT
-        try:
-            self.epoll.register(fd, ev)
-        except IOError:
-            return False
-        super(Epoll, self).register(fd, events, callback)
+        if need_modify:
+            self.epoll.modify(sock.fileno(), ev)
+        else:
+            try:
+                self.epoll.register(sock.fileno(), ev)
+            except IOError:
+                return False
+            else:
+                self.fd2socks[sock.fileno()] = sock
+        super(Epoll, self).register(sock, events, callback, *args, **kwargs)
         return True
 
-    def unregister(self, fd):
-        super(Epoll, self).unregister(fd)
-        self.epoll.unregister(fd)
-        return True
+    def unregister(self, sock, events=EV_READ | EV_WRITE):
+        super(Epoll, self).unregister(sock, events)
+        if events == EV_READ | EV_WRITE:
+            self.epoll.unregister(sock)
+            ck = self.fd2socks.pop(sock.fileno(), None)
+            if ck:
+                return True
+            else:
+                return False
+        else:
+            ev = select.EPOLLERR | select.EPOLLHUP | \
+                select.EPOLLIN | select.EPOLLOUT
+            if events & EV_READ:
+                ev ^= select.EPOLLIN
+            if events & EV_WRITE:
+                ev ^= select.EPOLLOUT
+            self.epoll.modify(sock.fileno(), ev)
+            return True
 
     def run(self):
         while True:
@@ -117,15 +147,21 @@ class Epoll(IOLoop):
                 self.check_timer()
                 events = self.epoll.poll(self.MIN_INTERVAL)
                 for fd, event in events:
+                    sock = self.fd2socks.get(fd)
+                    if not sock:
+                        continue
                     if event & select.EPOLLERR or event & select.EPOLLHUP:
                         if self.err_callback:
-                            self.err_callback(fd)
+                            self.err_callback[0](sock, *self.err_callback[1],
+                                                 **self.err_callback[2])
                     elif event & select.EPOLLIN:
-                        if fd in self.rd_fds:
-                            self.rd_fds[fd](fd)
+                        callback, args, kwargs = self.rd_socks.get(sock)
+                        if callback:
+                            callback(sock, *args, **kwargs)
                     elif event & select.EPOLLOUT:
-                        if fd in self.wr_fds:
-                            self.wr_fds[fd](fd)
+                        callback, args, kwargs = self.wr_socks.get(sock)
+                        if callback:
+                            callback(sock, *args, **kwargs)
             except Exception as e:
                 print("exception, %s\n%s" % (e, traceback.format_exc()))
 
