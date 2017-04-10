@@ -187,7 +187,7 @@ def test_on_upstream_response_BC(chinadns):
     assert str(d.rr[0].rdata) == "1.2.4.8"
 
 
-def test_on_upstream_response_invalid(chinadns):
+def test_on_upstream_response_invalid_A(chinadns):
     qname = "www.x.net"
     r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
@@ -213,15 +213,19 @@ def test_on_upstream_response_not_A(chinadns):
                                        rtype=dnslib.QTYPE.CNAME,
                                        rdata=dnslib.CNAME(qresult),
                                        ttl=3))
-    r.server_resps[foreign_dns] = b'123456'
-    resp = chinadns.on_upstream_response(r)
-    assert not resp
-
     r.server_resps[local_dns1] = bytes(res.pack())
     resp = chinadns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == qresult
+
+
+def test_on_upstream_response_invalid_not_A(chinadns):
+    qname = "www.x.net"
+    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.CNAME)
+    r.server_resps[local_dns1] = b'123456'
+    resp = chinadns.on_upstream_response(r)
+    assert not resp
 
 
 def test_on_timeout_with_notimeout(chinadns):
