@@ -60,13 +60,14 @@ def running_process(forwarder):
     p.start()
     yield forwarder
     os.kill(p.pid, signal.SIGINT)
-    time.sleep(0.1)
-    p.terminate()
+    p.join()
 
 
 def test_init_listen_sock(forwarder):
     sock = forwarder.init_listen_sock(("127.0.0.1", 0))
     assert sock
+    with pytest.raises(SystemExit):
+        forwarder.init_listen_sock(forwarder.upstreams[0])
     sock.close()
 
 
@@ -76,10 +77,13 @@ def test_send_response(forwarder):
     client.sendto(b"hello\n", forwarder_addr)
     time.sleep(0.2)
     data, client_addr = forwarder.s_sock.recvfrom(1024)
-    forwarder.send_response(client_addr, data)
+    assert forwarder.send_response(client_addr, data)
     data, _ = client.recvfrom(1024)
     client.close()
     assert data == b"hello\n"
+
+    forwarder.s_sock.close()
+    assert not forwarder.send_response(("127.0.0.1", 0), data)
 
 
 def test_handle_request_from_client(forwarder):

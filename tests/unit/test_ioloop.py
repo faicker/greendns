@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import signal
-import time
 import sys
 import socket
 from multiprocessing import Process, Pipe
@@ -71,8 +70,7 @@ class TestIOLoop:
         iol.unregister(sock)
         sock.close()
         os.kill(p.pid, signal.SIGINT)
-        time.sleep(0.1)
-        p.terminate()
+        p.join()
 
     def write_func(self, sock, iol, server_addr):
         sock.sendto(b"hello\n", server_addr)

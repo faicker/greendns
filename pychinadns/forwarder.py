@@ -27,12 +27,6 @@ class Forwarder(object):
         self.s_sock = None
         self.s_sock = self.init_listen_sock(self.listen_addr)
 
-    def __del__(self):
-        if self.s_sock:
-            self.s_sock.close()
-        for s in self.requests.keys():
-            s.close()
-
     def init_listen_sock(self, listen_addr):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -52,9 +46,10 @@ class Forwarder(object):
         except socket.error as e:
             self.logger.error("sendto %s:%d failed. error=%s"
                               % (client_addr[0], client_addr[1], e))
-            return
+            return False
         self.logger.debug("sendto client %s:%d, data len=%d"
                           % (client_addr[0], client_addr[1], len(resp)))
+        return True
 
     def check_timeout(self):
         to_delete = []
