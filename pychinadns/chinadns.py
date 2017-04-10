@@ -139,12 +139,17 @@ class ChinaDNS(object):
         self.forwarder.run_forever()
 
 
-def main(argv):
+def run(argv):
     dns = ChinaDNS()
     dns.parse_config(argv)
     dns.setup_logger()
     dns.init_forwarder()
     dns.run_forwarder()
 
+
+def main():
+    run(sys.argv[1:])
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

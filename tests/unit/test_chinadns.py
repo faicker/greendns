@@ -165,7 +165,7 @@ def test_run_forwarder(dns, udp_server_process):
     p.join()
 
 
-def test_main(udp_server_process):
+def test_run(udp_server_process):
     addr1, addr2 = udp_server_process
     forward_addr = ("127.0.0.1", 42353)
     argv = ["-p", "%s:%d" % (forward_addr[0], forward_addr[1]),
@@ -176,7 +176,7 @@ def test_main(udp_server_process):
             "-f", "%s/chnroute_test.txt" % (mydir),
             "-b", "%s/iplist_test.txt" % (mydir),
             "--cache"]
-    p = Process(target=chinadns.main, args=(argv,))
+    p = Process(target=chinadns.run, args=(argv,))
     p.start()
     time.sleep(0.2)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
