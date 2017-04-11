@@ -30,7 +30,6 @@ class Forwarder(object):
     def init_listen_sock(self, listen_addr):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setblocking(0)
         try:
             sock.bind(listen_addr)
         except socket.error as e:
@@ -110,7 +109,6 @@ class Forwarder(object):
             try:
                 sock = None
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.setblocking(0)
                 sock.sendto(data, server_addr)
             except socket.error as e:
                 self.logger.error("sendto %s:%d failed. error=%s"

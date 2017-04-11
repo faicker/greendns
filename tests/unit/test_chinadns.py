@@ -146,7 +146,7 @@ def test_run_forwarder(dns, udp_server_process):
     forward_addr = dns.forwarder.s_sock.getsockname()
     p = Process(target=dns.run_forwarder)
     p.start()
-    time.sleep(0.2)
+    time.sleep(0.5)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     q = dnslib.DNSRecord.question(qname)
     client.sendto(bytes(q.pack()), forward_addr)
@@ -178,7 +178,7 @@ def test_run(udp_server_process):
             "--cache"]
     p = Process(target=chinadns.run, args=(argv,))
     p.start()
-    time.sleep(0.2)
+    time.sleep(0.5)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     q = dnslib.DNSRecord.question(qname)
     client.sendto(bytes(q.pack()), forward_addr)

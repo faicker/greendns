@@ -75,7 +75,6 @@ def test_send_response(forwarder):
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     forwarder_addr = forwarder.s_sock.getsockname()
     client.sendto(b"hello\n", forwarder_addr)
-    time.sleep(0.2)
     data, client_addr = forwarder.s_sock.recvfrom(1024)
     assert forwarder.send_response(client_addr, data)
     data, _ = client.recvfrom(1024)
@@ -90,7 +89,6 @@ def test_handle_request_from_client(forwarder):
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     forwarder_addr = forwarder.s_sock.getsockname()
     client.sendto(b"hello\n", forwarder_addr)
-    time.sleep(0.2)
     forwarder.handle_request_from_client(forwarder.s_sock)
     client.close()
     assert len(forwarder.requests) == 2
@@ -101,7 +99,6 @@ def test_handle_response_from_upstream(forwarder):
     forwarder_addr = forwarder.s_sock.getsockname()
     client.sendto(b"hello\n", forwarder_addr)
     forwarder.handle_request_from_client(forwarder.s_sock)
-    time.sleep(0.2)
     for sock in list(forwarder.requests):
         forwarder.handle_response_from_upstream(sock)
     assert len(forwarder.requests) == 0

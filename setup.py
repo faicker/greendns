@@ -1,7 +1,7 @@
 import sys
 from setuptools import setup, find_packages
+from pychinadns import __version__
 
-APP_VERSION = '0.3'
 
 py_ver = sys.version[:3]
 requires = ['dnslib', 'six']
@@ -9,7 +9,7 @@ if py_ver == '2.6':
     requires += ['argparse']
 
 setup(name='pychinadns',
-      version=APP_VERSION,
+      version=__version__,
       url='https://github.com/faicker/pychinadns',
       license='MIT',
       platforms=['unix', 'linux', 'osx', 'cygwin', 'win32'],
