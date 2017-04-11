@@ -1,18 +1,15 @@
 language: python
 python:
+    - "2.6"
+    - "2.7"
+    - "3.3"
+    - "3.4"
     - "3.5"
     - "3.6"
-env:
-    - TOXENV=py26
-    - TOXENV=py27
-    - TOXENV=py33
-    - TOXENV=py34
-    - TOXENV=py35
-    - TOXENV=py36
 install:
     - pip install tox coveralls
 script:
-    - tox -e $TOXENV
+    - tox
 
 after_success:
     - coveralls
