@@ -2,6 +2,11 @@ import sys
 from setuptools import setup, find_packages
 from pychinadns import __version__
 
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except ImportError:
+    long_description = open('README.md').read()
 
 py_ver = sys.version[:3]
 requires = ['dnslib', 'six']
@@ -16,6 +21,7 @@ setup(name='pychinadns',
       author='faicker.mo',
       author_email='faicker.mo@gmail.com',
       description='A non-poisonous and CDN-friendly Recursive DNS Resolver',
+      long_description=long_description,
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Intended Audience :: System Administrators',
@@ -32,9 +38,8 @@ setup(name='pychinadns',
               'pychinadns = pychinadns.chinadns:main'
           ],
       },
-      packages=find_packages(exclude=['tests', 'util', 'etc']),
+      packages=find_packages(exclude=['tests', 'tools', 'etc']),
       data_files=[('etc/pychinadns/', ['etc/pychinadns/chnroute.txt']),
                   ('etc/pychinadns/', ['etc/pychinadns/iplist.txt'])],
-      long_description=open('README.md').read(),
       zip_safe=False,
       install_requires=requires)
