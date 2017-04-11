@@ -1,4 +1,6 @@
-#pychinadns
+[![Build Status](https://travis-ci.org/faicker/pychinadns.svg?branch=master)](https://travis-ci.org/faicker/pychinadns)
+[![Coverage Status](https://coveralls.io/repos/github/faicker/pychinadns/badge.svg?branch=master)](https://coveralls.io/github/faicker/pychinadns?branch=master)
+# pychinadns
 
 A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
 You must config at least two dns servers. One is in China and the other is out of China which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port).
