@@ -95,8 +95,10 @@ def test_check_handler():
 
 
 def test_setup_logger(dns):
-    dns.setup_logger()
-    assert dns.logger
+    dns.setup_logger(loglevel="debug")
+    import logging
+    logger = logging.getLogger()
+    assert logger.level == logging.DEBUG
 
 
 def test_parse_config(dns):

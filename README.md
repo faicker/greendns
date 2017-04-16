@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/faicker/pychinadns.svg?branch=master)](https://travis-ci.org/faicker/pychinadns)
 [![Coverage Status](https://coveralls.io/repos/github/faicker/pychinadns/badge.svg?branch=master)](https://coveralls.io/github/faicker/pychinadns?branch=master)
+
 # pychinadns
 
 A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
@@ -21,22 +22,24 @@ BD: use foreign dns server result
 ```
 
 ## install
-pip install .
+```bash
+$ pip install pychinadns
+```
 
 ## usage
-```
-pychinadns -r chinadns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+```bash
+$ pychinadns -r chinadns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 or
-```
-pychinadns -r chinadns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+
+```bash
+$ pychinadns -r chinadns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 
 ## configure
 
-pychinadns -r chinadns -h
-
-```
+```bash
+$ pychinadns -r chinadns -h
 usage: chinadns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
                    [-l LOGLEVEL] [-m MODE] -f CHNROUTE -b BLACKLIST
                    [--rfc1918] [--cache]
