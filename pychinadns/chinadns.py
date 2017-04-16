@@ -68,7 +68,6 @@ class ChinaDNS(object):
     '''
     def __init__(self):
         self.args = None
-        self.logger = None
 
     def parse_config(self, argv):
         parser = argparse.ArgumentParser(
@@ -123,7 +122,6 @@ class ChinaDNS(object):
         if self.args and hasattr(self.args, "loglevel"):
             loglevel = self.args.loglevel
         logger.setLevel(str2level[loglevel])
-        self.logger = logger
 
     def init_forwarder(self):
         io_engine = ioloop.get_ioloop(self.args.mode)
