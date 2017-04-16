@@ -9,7 +9,7 @@ from six.moves import socketserver
 from pychinadns import ioloop
 
 
-if sys.platform == 'linux2':
+if sys.platform.startswith('linux'):
     engines = ["select", "epoll"]
 else:
     engines = ["select"]
