@@ -175,40 +175,35 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                                   % (e, data))
                 continue
             self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
+            str_ip = self.__parse_A(d)
+            if self.cnet.is_in_blacklist(str_ip):
+                continue
             if self.locals[ip]:
-                str_ip = self.__parse_A(d)
-                if self.cnet.is_in_blacklist(str_ip):
-                    continue
                 local_result = d
-                if not str_ip:
-                    continue
-                if self.cnet.is_in_china(str_ip):
-                    r[0][0] = 1
-                    self.logger.info(
-                        "local server %s:%d returned local addr %s"
-                        % (ip, port, str_ip))
-                else:
-                    r[0][1] = 1
-                    self.logger.info(
-                        "local server %s:%d returned foreign addr %s"
-                        % (ip, port, str_ip))
+                if str_ip:
+                    if self.cnet.is_in_china(str_ip):
+                        r[0][0] = 1
+                        self.logger.info(
+                            "local server %s:%d returned local addr %s"
+                            % (ip, port, str_ip))
+                    else:
+                        r[0][1] = 1
+                        self.logger.info(
+                            "local server %s:%d returned foreign addr %s"
+                            % (ip, port, str_ip))
             else:
-                str_ip = self.__parse_A(d)
-                if self.cnet.is_in_blacklist(str_ip):
-                    continue
                 foreign_result = d
-                if not str_ip:
-                    continue
-                if not self.cnet.is_in_china(str_ip):
-                    r[1][0] = 1
-                    self.logger.info(
-                        "foregin server %s:%d returned foreign addr %s"
-                        % (ip, port, str_ip))
-                else:
-                    r[1][1] = 1
-                    self.logger.info(
-                        "foregin server %s:%d returned local addr %s"
-                        % (ip, port, str_ip))
+                if str_ip:
+                    if not self.cnet.is_in_china(str_ip):
+                        r[1][0] = 1
+                        self.logger.info(
+                            "foregin server %s:%d returned foreign addr %s"
+                            % (ip, port, str_ip))
+                    else:
+                        r[1][1] = 1
+                        self.logger.info(
+                            "foregin server %s:%d returned local addr %s"
+                            % (ip, port, str_ip))
         if local_result and foreign_result:
             if r[0][0]:
                 resp = local_result
@@ -222,13 +217,18 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         return resp
 
     def __parse_A(self, record):
-        '''parse first A record'''
+        '''parse a proper A record'''
         str_ip = ""
+        china_ip = ""
         for rr in record.rr:
             if rr.rtype == dnslib.QTYPE.A:
                 str_ip = str(rr.rdata)
-                break
-        return str_ip
+                if self.cnet.is_in_china(str_ip):
+                    china_ip = str_ip
+        if china_ip:
+            return china_ip
+        else:
+            return str_ip
 
     def __replace_id(self, resp, new_tid):
         resp.header.id = new_tid
