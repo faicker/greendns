@@ -21,12 +21,14 @@ BC: not possible. use foreign dns server result
 BD: use foreign dns server result
 ```
 
-## install
+## Install
+
 ```bash
 $ pip install pychinadns
 ```
 
-## usage
+## Usage
+
 ```bash
 $ pychinadns -r chinadns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
@@ -36,7 +38,7 @@ or
 $ pychinadns -r chinadns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
 ```
 
-## configure
+## Configure
 
 ```bash
 $ pychinadns -r chinadns -h
