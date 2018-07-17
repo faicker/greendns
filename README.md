@@ -4,17 +4,18 @@
 # pychinadns
 
 A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
-You must config at least two dns servers. One is in China and the other is out of China which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port).
+You must config at least two dns servers. One is local and the other is foreign which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port, dnscrypt-proxy is recommended).
 
 Use the response as follows,
 
 ```
-First filter poisoned ip with block iplist with -b argument.
+First filter poisoned ip with blocked iplist with -b argument.
 Second,
                            | result is local | result is foreign
      local dns server      |    A            |   B
      foreign dns server    |    C            |   D
 
+From the matrix, we get the result as follows,
 AC: use local dns server result
 AD: use local dns server result
 BC: not possible. use foreign dns server result
