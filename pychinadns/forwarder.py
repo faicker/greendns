@@ -58,7 +58,7 @@ class Forwarder(object):
                 self.send_response(req.client_addr, resp)
             if is_timeout:
                 myaddr = sock.getsockname()
-                self.logger.debug("%s:%d request to upstream timeout"
+                self.logger.warning("%s:%d request to upstream timeout"
                                   % (myaddr[0], myaddr[1]))
                 self.io_engine.unregister(sock)
                 sock.close()

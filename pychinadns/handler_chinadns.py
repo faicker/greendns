@@ -101,11 +101,14 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         qtype = d.questions[0].qtype
         qname = str(d.questions[0].qname)
         tid = d.header.id
+        self.logger.info("received request, name=%s, type=%s, id=%d" %
+                         (qname, dnslib.QTYPE.get(qtype), tid))
         if self.cache_enabled:
             resp = self.cache.find((qname, qtype))
             if resp:
                 self.__replace_id(resp, tid)
-                self.logger.debug("cache hit, response detail,\n%s" % (resp))
+                self.logger.info("cache hit")
+                self.logger.debug("response detail,\n%s" % (resp))
                 return (is_continue, bytes(resp.pack()))
         req.qtype = qtype
         req.qname = qname
@@ -139,16 +142,22 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                     if answer.rtype == req.qtype:
                         ttl = answer.ttl
                         self.cache.add((req.qname, req.qtype), resp, ttl)
-                        self.logger.debug(
-                            "add to cache, key=(%s, %d), ttl=%d"
-                            % (req.qname, req.qtype, ttl))
+                        self.logger.info(
+                            "add to cache, key=(%s, %s), ttl=%d"
+                            % (req.qname, dnslib.QTYPE.get(req.qtype), ttl))
                         break
             return bytes(resp.pack())
-        else:
-            return ""
+        return ""
 
     def __handle_other(self, req):
-        for upstream, data in req.server_resps.items():
+        '''using the local server answer if local server answered'''
+        upstream = None
+        data = None
+        for u, d in req.server_resps.items():
+            upstream , data = u, d
+            if u[0] in self.locals and self.locals[u[0]]:
+                break
+        if upstream and data:
             ip, port = upstream
             try:
                 d = dnslib.DNSRecord.parse(data)
@@ -174,36 +183,42 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 self.logger.error("parse response error, msg=%s, data=%s"
                                   % (e, data))
                 continue
-            self.logger.debug("%s:%d response detail,\n%s" % (ip, port, d))
             str_ip = self.__parse_A(d)
+            self.logger.info("%s:%d answered ip=%s" %(ip, port, str_ip))
+            self.logger.debug("response detail,\n%s" % (d))
             if self.cnet.is_in_blacklist(str_ip):
+                self.logger.info("ip %s is in blacklist" % (str_ip))
                 continue
-            if self.locals[ip]:
-                local_result = d
-                if str_ip:
-                    if self.cnet.is_in_china(str_ip):
-                        r[0][0] = 1
-                        self.logger.info(
-                            "local server %s:%d returned local addr %s"
-                            % (ip, port, str_ip))
-                    else:
-                        r[0][1] = 1
-                        self.logger.info(
-                            "local server %s:%d returned foreign addr %s"
-                            % (ip, port, str_ip))
+            if ip in self.locals:
+                if self.locals[ip]:
+                    local_result = d
+                    if str_ip:
+                        if self.cnet.is_in_china(str_ip):
+                            r[0][0] = 1
+                            self.logger.info(
+                                "local server %s:%d returned local addr %s"
+                                % (ip, port, str_ip))
+                        else:
+                            r[0][1] = 1
+                            self.logger.info(
+                                "local server %s:%d returned foreign addr %s"
+                                % (ip, port, str_ip))
+                else:
+                    foreign_result = d
+                    if str_ip:
+                        if not self.cnet.is_in_china(str_ip):
+                            r[1][0] = 1
+                            self.logger.info(
+                                "foregin server %s:%d returned foreign addr %s"
+                                % (ip, port, str_ip))
+                        else:
+                            r[1][1] = 1
+                            self.logger.info(
+                                "foregin server %s:%d returned local addr %s"
+                                % (ip, port, str_ip))
             else:
-                foreign_result = d
-                if str_ip:
-                    if not self.cnet.is_in_china(str_ip):
-                        r[1][0] = 1
-                        self.logger.info(
-                            "foregin server %s:%d returned foreign addr %s"
-                            % (ip, port, str_ip))
-                    else:
-                        r[1][1] = 1
-                        self.logger.info(
-                            "foregin server %s:%d returned local addr %s"
-                            % (ip, port, str_ip))
+                self.logger.warning("unexpected answer from unknown server")
+                return None
         if local_result and foreign_result:
             if r[0][0]:
                 resp = local_result
@@ -214,6 +229,13 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 resp = local_result
         elif foreign_result:
             resp = foreign_result
+
+        if resp == local_result:
+            self.logger.info("using local result")
+        elif resp == foreign_result:
+            self.logger.info("using foreign result")
+        else:
+            self.logger.info("no result")
         return resp
 
     def __parse_A(self, record):
@@ -227,8 +249,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                     china_ip = str_ip
         if china_ip:
             return china_ip
-        else:
-            return str_ip
+        return str_ip
 
     def __replace_id(self, resp, new_tid):
         resp.header.id = new_tid
