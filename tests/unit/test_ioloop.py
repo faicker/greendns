@@ -6,7 +6,7 @@ import socket
 from multiprocessing import Process, Pipe
 import pytest
 from six.moves import socketserver
-from pychinadns import ioloop
+from greendns import ioloop
 
 
 if sys.platform.startswith('linux'):

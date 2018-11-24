@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cmd="pychinadns -r chinadns -p ${LISTEN} -u ${IDNS},${ODNS} -l ${LOGLEVEL} -t ${TIMEOUT} -f /usr/local/etc/pychinadns/chnroute.txt -b /usr/local/etc/pychinadns/iplist.txt"
+cmd="greendns -r greendns -p ${LISTEN} -u ${IDNS},${ODNS} -l ${LOGLEVEL} -t ${TIMEOUT} -f /usr/local/etc/greendns/localroute.txt -b /usr/local/etc/greendns/iplist.txt"
 
 if [[ "${CACHE}" == "true" ]]; then
     cmd="$cmd"" --cache"

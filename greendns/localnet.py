@@ -3,25 +3,25 @@ import struct
 import socket
 
 
-class ChinaNet(object):
-    def __init__(self, chnroutes, blacklists, using_rfc1918):
-        self.china_subs = []
+class LocalNet(object):
+    def __init__(self, localroutes, blacklists, using_rfc1918):
+        self.local_subs = []
         self.blackips = set()
 
-        for sub in chnroutes:
+        for sub in localroutes:
             (l, h) = self.convert(sub)
             if l and h:
-                self.china_subs.append((l, h))
+                self.local_subs.append((l, h))
         for ip in blacklists:
             try:
                 self.blackips.add(struct.unpack('>I', socket.inet_aton(ip))[0])
             except socket.error:
                 continue
         if using_rfc1918:
-            self.china_subs.append(self.convert("192.168.0.0/16"))
-            self.china_subs.append(self.convert("10.0.0.0/8"))
-            self.china_subs.append(self.convert("172.16.0.0/12"))
-        self.china_subs.sort()
+            self.local_subs.append(self.convert("192.168.0.0/16"))
+            self.local_subs.append(self.convert("10.0.0.0/8"))
+            self.local_subs.append(self.convert("172.16.0.0/12"))
+        self.local_subs.sort()
 
     def convert(self, net):
         parts = net.split('/')
@@ -51,19 +51,19 @@ class ChinaNet(object):
         else:
             return False
 
-    def is_in_china(self, str_ip):
+    def is_in_local(self, str_ip):
         '''binary search'''
         try:
             ip = struct.unpack('>I', socket.inet_aton(str_ip))[0]
         except socket.error:
             return False
         i = 0
-        j = len(self.china_subs) - 1
+        j = len(self.local_subs) - 1
         while (i <= j):
             k = (i + j) // 2
-            if ip > self.china_subs[k][1]:
+            if ip > self.local_subs[k][1]:
                 i = k + 1
-            elif ip < self.china_subs[k][0]:
+            elif ip < self.local_subs[k][0]:
                 j = k - 1
             else:
                 return True

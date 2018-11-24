@@ -8,8 +8,8 @@ import argparse
 import dnslib
 import pytest
 from six.moves import socketserver
-from pychinadns import chinadns
-from pychinadns.handler_chinadns import ChinaDNSHandler
+from greendns import greendns
+from greendns.handler_greendns import GreenDNSHandler
 
 
 def get_myip():
@@ -70,28 +70,28 @@ def udp_server_process():
 
 @pytest.fixture
 def dns():
-    return chinadns.ChinaDNS()
+    return greendns.GreenDNS()
 
 
 def test_check_loglevel():
-    for k, v in chinadns.str2level.items():
-        assert k == chinadns.check_loglevel(k)
+    for k, v in greendns.str2level.items():
+        assert k == greendns.check_loglevel(k)
     with pytest.raises(argparse.ArgumentTypeError):
-        chinadns.check_loglevel("undefined")
+        greendns.check_loglevel("undefined")
 
 
 def test_load_mod():
-    mod = chinadns.load_mod("pychinadns", "handler_base")
+    mod = greendns.load_mod("greendns", "handler_base")
     assert mod is not None
-    mod = chinadns.load_mod("pychinadns", "notexist")
+    mod = greendns.load_mod("greendns", "notexist")
     assert mod is None
 
 
 def test_check_handler():
-    obj = chinadns.check_handler("chinadns")
+    obj = greendns.check_handler("greendns")
     assert obj is not None
     with pytest.raises(SystemExit):
-        chinadns.check_handler("notexist")
+        greendns.check_handler("notexist")
 
 
 def test_setup_logger(dns):
@@ -102,21 +102,21 @@ def test_setup_logger(dns):
 
 
 def test_parse_config(dns):
-    dns.parse_config(["-p", "127.0.0.1:42153", "-r", "chinadns",
+    dns.parse_config(["-p", "127.0.0.1:42153", "-r", "greendns",
                       "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
-                      "-f", "%s/chnroute_test.txt" % (mydir),
+                      "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
                       "--cache"])
     assert dns.args.loglevel == "debug"
     assert dns.args.mode == "select"
     assert dns.args.listen == "127.0.0.1:42153"
-    assert isinstance(dns.args.handler, ChinaDNSHandler)
+    assert isinstance(dns.args.handler, GreenDNSHandler)
 
 
 def test_parse_config_without_listen_ip(dns):
-    dns.parse_config(["-p", "42153", "-r", "chinadns",
+    dns.parse_config(["-p", "42153", "-r", "greendns",
                       "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
-                      "-f", "%s/chnroute_test.txt" % (mydir),
+                      "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
                       "--cache"])
     assert dns.args.listen == "127.0.0.1:42153"
@@ -130,17 +130,17 @@ def test_parse_config_help(dns):
         dns.parse_config(["-h"])
 
     with pytest.raises(SystemExit):
-        dns.parse_config(["-r", "chinadns", "-h"])
+        dns.parse_config(["-r", "greendns", "-h"])
 
 
 def test_run_forwarder(dns, udp_server_process):
     addr1, addr2 = udp_server_process
     dns.parse_config(["-p", "127.0.0.1:0",
-                      "-r", "chinadns",
+                      "-r", "greendns",
                       "-u", "%s:%d,%s:%d" %
                       (addr1[0], addr1[1], addr2[0], addr2[1]),
                       "-l", "debug",
-                      "-f", "%s/chnroute_test.txt" % (mydir),
+                      "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
                       "--cache"])
     dns.setup_logger()
@@ -171,14 +171,14 @@ def test_run(udp_server_process):
     addr1, addr2 = udp_server_process
     forward_addr = ("127.0.0.1", 42353)
     argv = ["-p", "%s:%d" % (forward_addr[0], forward_addr[1]),
-            "-r", "chinadns",
+            "-r", "greendns",
             "-u", "%s:%d,%s:%d" %
             (addr1[0], addr1[1], addr2[0], addr2[1]),
             "-l", "debug",
-            "-f", "%s/chnroute_test.txt" % (mydir),
+            "-f", "%s/localroute_test.txt" % (mydir),
             "-b", "%s/iplist_test.txt" % (mydir),
             "--cache"]
-    p = Process(target=chinadns.run, args=(argv,))
+    p = Process(target=greendns.run, args=(argv,))
     p.start()
     time.sleep(0.5)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

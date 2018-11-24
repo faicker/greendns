@@ -7,7 +7,7 @@ ENV TIMEOUT 1.0
 ENV MODE select
 ENV RFC1918 true
 ENV CACHE true
-RUN pip install --no-cache-dir pychinadns
+RUN pip install --no-cache-dir greendns
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]

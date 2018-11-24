@@ -3,7 +3,7 @@
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.github.pychinadns.plist</string>
+    <string>com.github.greendns.plist</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -13,25 +13,25 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/python</string>
-        <string>bin/pychinadns</string>
+        <string>bin/greendns</string>
         <string>-p</string>
         <string>127.0.0.1:53</string>
         <string>-r</string>
-        <string>chinadns</string>
+        <string>greendns</string>
         <string>-u</string>
         <string>223.5.5.5:53,127.0.0.1:5454</string>
         <string>-l</string>
         <string>debug</string>
         <string>-f</string>
-        <string>etc/pychinadns/chnroute.txt</string>
+        <string>etc/greendns/localroute.txt</string>
         <string>-b</string>
-        <string>etc/pychinadns/iplist.txt</string>
+        <string>etc/greendns/iplist.txt</string>
         <string>--cache</string>
     </array>
     <key>StandardOutPath</key>
-    <string>var/log/pychinadns.log</string>
+    <string>var/log/greendns.log</string>
     <key>StandardErrorPath</key>
-    <string>var/log/pychinadns.log</string>
+    <string>var/log/greendns.log</string>
     <key>SoftResourceLimits</key>
     <dict>
         <key>NumberOfFiles</key>

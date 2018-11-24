@@ -4,8 +4,8 @@ import time
 import argparse
 import pytest
 import dnslib
-from pychinadns.handler_chinadns import ChinaDNSHandler
-from pychinadns.handler_chinadns import ChinaDNSRequest
+from greendns.handler_greendns import GreenDNSHandler
+from greendns.handler_greendns import GreenDNSRequest
 
 mydir = os.path.dirname(os.path.abspath(__file__))
 local_dns1 = ("223.5.5.5", 53)
@@ -18,25 +18,25 @@ class IOEngineMock(object):
         pass
 
 
-def init_chinadns_request(chinadns, qname, qtype, id=1234):
+def init_greendns_request(greendns, qname, qtype, id=1234):
     q = dnslib.DNSRecord.question(qname)
     q.header.id = id
-    r = chinadns.get_request()
+    r = greendns.get_request()
     r.qname = qname
     r.qtype = qtype
     r.client_addr = ("127.0.0.1", 50453)
     r.send_ts = time.time()
-    r.server_num = len(chinadns.locals)
+    r.server_num = len(greendns.locals)
     r.req_data = bytes(q.pack())
     return r
 
 
 @pytest.fixture
-def chinadns():
-    h = ChinaDNSHandler()
+def greendns():
+    h = GreenDNSHandler()
     parser = argparse.ArgumentParser()
     h.add_arg(parser)
-    remaining_argv = ["-f", "%s/chnroute_test.txt" % (mydir),
+    remaining_argv = ["-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir), "--cache"]
     h.parse_arg(parser, remaining_argv,
                 "%s:%d,%s:%d" %
@@ -49,10 +49,10 @@ def chinadns():
 
 def test_init():
     with pytest.raises(SystemExit):
-        h = ChinaDNSHandler()
+        h = GreenDNSHandler()
         parser = argparse.ArgumentParser()
         h.add_arg(parser)
-        remaining_argv = ["-f", "%s/chnroute_test.txt" % (mydir),
+        remaining_argv = ["-f", "%s/localroute_test.txt" % (mydir),
                           "-b", "%s/iplist_test.txt" % (mydir), "--cache"]
         h.parse_arg(parser, remaining_argv,
                     "%s:%d,%s:%d" %
@@ -62,151 +62,151 @@ def test_init():
         h.init(io_engine)
 
 
-def test_get_request(chinadns):
-    r = chinadns.get_request()
-    assert isinstance(r, ChinaDNSRequest)
+def test_get_request(greendns):
+    r = greendns.get_request()
+    assert isinstance(r, GreenDNSRequest)
 
 
-def test_on_client_request_invalid(chinadns):
-    r = init_chinadns_request(chinadns, "google.com", dnslib.QTYPE.A)
+def test_on_client_request_invalid(greendns):
+    r = init_greendns_request(greendns, "google.com", dnslib.QTYPE.A)
     r.req_data = b'123456'
-    is_continue, raw_resp = chinadns.on_client_request(r)
+    is_continue, raw_resp = greendns.on_client_request(r)
     assert not is_continue
     assert not raw_resp
 
 
-def test_on_client_request_without_cached(chinadns):
-    r = init_chinadns_request(chinadns, "google.com", dnslib.QTYPE.A)
-    is_continue, raw_resp = chinadns.on_client_request(r)
+def test_on_client_request_without_cached(greendns):
+    r = init_greendns_request(greendns, "google.com", dnslib.QTYPE.A)
+    is_continue, raw_resp = greendns.on_client_request(r)
     assert is_continue
     assert not raw_resp
 
 
-def test_on_client_request_with_cached(chinadns):
+def test_on_client_request_with_cached(greendns):
     qname = "qq.com"
     id = 1024
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A, id)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A, id)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("101.226.103.106"),
                                        ttl=3))
-    chinadns.cache.add(("qq.com.", 1), res, 3)
-    is_continue, raw_resp = chinadns.on_client_request(r)
+    greendns.cache.add(("qq.com.", 1), res, 3)
+    is_continue, raw_resp = greendns.on_client_request(r)
     assert not is_continue
     assert raw_resp
     d = dnslib.DNSRecord.parse(raw_resp)
     assert d.header.id == id
 
 
-def test_on_client_request_with_cache_expired(chinadns):
+def test_on_client_request_with_cache_expired(greendns):
     time.sleep(3)
-    r = init_chinadns_request(chinadns, "qq.com", dnslib.QTYPE.A)
-    is_continue, raw_resp = chinadns.on_client_request(r)
+    r = init_greendns_request(greendns, "qq.com", dnslib.QTYPE.A)
+    is_continue, raw_resp = greendns.on_client_request(r)
     assert is_continue
     assert not raw_resp
 
 
-def test_on_upstream_response_BD(chinadns):
+def test_on_upstream_response_BD(greendns):
     qname = "google.com"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("1.2.3.4"),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("172.217.24.14")
     r.server_resps[foreign_dns] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == "172.217.24.14"
 
 
-def test_on_upstream_response_AD(chinadns):
+def test_on_upstream_response_AD(greendns):
     qname = "www.microsoft.com"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("183.136.212.50"),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("184.85.123.14")
     r.server_resps[foreign_dns] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == "183.136.212.50"
 
 
-def test_on_upstream_response_AC(chinadns):
+def test_on_upstream_response_AC(greendns):
     qname = "www.coding.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("219.146.244.91"),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("120.132.59.101")
     r.server_resps[foreign_dns] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == "219.146.244.91"
 
 
-def test_on_upstream_response_BC(chinadns):
+def test_on_upstream_response_BC(greendns):
     qname = "www.x.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("8.8.8.8"),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert not resp
 
     res.rr[0].rdata = dnslib.A("1.2.4.8")
     r.server_resps[foreign_dns] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == "1.2.4.8"
 
 
-def test_on_upstream_response_invalid_A(chinadns):
+def test_on_upstream_response_invalid_A(greendns):
     qname = "www.x.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
                                        rdata=dnslib.A("1.2.4.8"),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     r.server_resps[foreign_dns] = b'123456'
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == "1.2.4.8"
 
 
-def test_on_upstream_response_not_A(chinadns):
+def test_on_upstream_response_not_A(greendns):
     qname = "www.microsoft.com"
     qresult = "www.microsoft.com-c-2.edgekey.net."
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.CNAME)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.CNAME)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
@@ -214,41 +214,41 @@ def test_on_upstream_response_not_A(chinadns):
                                        rdata=dnslib.CNAME(qresult),
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert resp
     d = dnslib.DNSRecord.parse(resp)
     assert str(d.rr[0].rdata) == qresult
 
 
-def test_on_upstream_response_invalid_not_A(chinadns):
+def test_on_upstream_response_invalid_not_A(greendns):
     qname = "www.x.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.CNAME)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.CNAME)
     r.server_resps[local_dns1] = b'123456'
-    resp = chinadns.on_upstream_response(r)
+    resp = greendns.on_upstream_response(r)
     assert not resp
 
 
-def test_on_timeout_with_notimeout(chinadns):
+def test_on_timeout_with_notimeout(greendns):
     qname = "www.x.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     time.sleep(1)
-    is_timeout, resp = chinadns.on_timeout(r, 3)
+    is_timeout, resp = greendns.on_timeout(r, 3)
     assert not is_timeout
     assert not resp
 
 
-def test_on_timeout_with_none_response(chinadns):
+def test_on_timeout_with_none_response(greendns):
     qname = "www.x.net"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     time.sleep(1)
-    is_timeout, resp = chinadns.on_timeout(r, 1)
+    is_timeout, resp = greendns.on_timeout(r, 1)
     assert is_timeout
     assert not resp
 
 
-def test_on_timeout_with_one_response_ok(chinadns):
+def test_on_timeout_with_one_response_ok(greendns):
     qname = "www.qq.com"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
@@ -256,14 +256,14 @@ def test_on_timeout_with_one_response_ok(chinadns):
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
     time.sleep(1)
-    is_timeout, resp = chinadns.on_timeout(r, 1)
+    is_timeout, resp = greendns.on_timeout(r, 1)
     assert is_timeout
     assert resp
 
 
-def test_on_timeout_with_one_response_invalid(chinadns):
+def test_on_timeout_with_one_response_invalid(greendns):
     qname = "www.qq.com"
-    r = init_chinadns_request(chinadns, qname, dnslib.QTYPE.A)
+    r = init_greendns_request(greendns, qname, dnslib.QTYPE.A)
     res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
                            q=dnslib.DNSQuestion(qname),
                            a=dnslib.RR(qname,
@@ -271,6 +271,6 @@ def test_on_timeout_with_one_response_invalid(chinadns):
                                        ttl=3))
     r.server_resps[local_dns1] = bytes(res.pack())
     time.sleep(1)
-    is_timeout, resp = chinadns.on_timeout(r, 1)
+    is_timeout, resp = greendns.on_timeout(r, 1)
     assert is_timeout
     assert not resp

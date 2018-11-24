@@ -1,56 +1,60 @@
-[![Build Status](https://travis-ci.org/faicker/pychinadns.svg?branch=master)](https://travis-ci.org/faicker/pychinadns)
-[![Coverage Status](https://coveralls.io/repos/github/faicker/pychinadns/badge.svg?branch=master)](https://coveralls.io/github/faicker/pychinadns?branch=master)
+[![Build Status](https://travis-ci.org/faicker/greendns.svg?branch=master)](https://travis-ci.org/faicker/greendns)
+[![Coverage Status](https://coveralls.io/repos/github/faicker/greendns/badge.svg?branch=master)](https://coveralls.io/github/faicker/greendns?branch=master)
 
-# pychinadns
+# greendns
 
-A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time.
-You must config at least two dns servers. One is local and the other is foreign which is not poisoned(tunnel through VPN or use OpenDNS 443/5353 port, dnscrypt-proxy is recommended).
+A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time. It's more efficient and quicker than [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
+You must config at least two dns servers. A part is local and poisoned, the other part is unpoisoned(tunnel through VPN or use OpenDNS 443/5353 port, [dnscrypt-proxy](https://github.com/jedisct1/dnscrypt-proxy) is recommended)
 
-Use the response as follows,
+## How it works
 
 ```
 First filter poisoned ip with blocked iplist with -b argument.
 Second,
-                           | result is local | result is foreign
-     local dns server      |    A            |   B
-     foreign dns server    |    C            |   D
+                                        | returned ip is local | returned ip is foreign
+     local and poisoned dns server      |    A                 |   B
+     unpoisoned dns server              |    C                 |   D
 
 From the matrix, we get the result as follows,
 AC: use local dns server result
 AD: use local dns server result
-BC: not possible. use foreign dns server result
-BD: use foreign dns server result
+BC: impossible. use unpoisoned dns server result
+BD: use unpoisoned dns server result
 ```
+
+It has two assumptions,
+* the polluted domain is foreign.
+* the poisoned result ip is foreign.
 
 ## Install
 
 ```bash
-$ pip install pychinadns
+$ pip install greendns
 ```
 
 ## Usage
 
 ```bash
-$ pychinadns -r chinadns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+$ greendns -r greendns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
 ```
-or
+or if 8.8.8.8 is unpoisoned,
 
 ```bash
-$ pychinadns -r chinadns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/pychinadns/chnroute.txt -b /usr/etc/pychinadns/iplist.txt
+$ greendns -r greendns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
 ```
 
 ## Configure
 
 ```bash
-$ pychinadns -r chinadns -h
-usage: chinadns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
-                   [-l LOGLEVEL] [-m MODE] -f CHNROUTE -b BLACKLIST
+$ greendns -r greendns -h
+usage: greendns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
+                   [-l LOGLEVEL] [-m MODE] -f LOCALROUTE -b BLACKLIST
                    [--rfc1918] [--cache]
 
 optional arguments:
   -h, --help
   -r HANDLER, --handler HANDLER
-                        Specify handler class, chinadns|quickest (default:
+                        Specify handler class, greendns|quickest (default:
                         None)
   -p PORT, --port PORT  Specify listen port or ip (default: 127.0.0.1:5353)
   -u UPSTREAM, --upstream UPSTREAM
@@ -62,8 +66,8 @@ optional arguments:
                         Specify log level, debug|info|warning|error (default:
                         info)
   -m MODE, --mode MODE  Specify io loop mode, select|epoll (default: select)
-  -f CHNROUTE, --chnroute CHNROUTE
-                        Specify chnroute file (default: None)
+  -f LOCALROUTE, --localroute LOCALROUTE
+                        Specify local routes file (default: None)
   -b BLACKLIST, --blacklist BLACKLIST
                         Specify ip blacklist file (default: None)
   --rfc1918             Specify if rfc1918 ip is local (default: False)

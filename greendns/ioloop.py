@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import select
 import traceback
-from pychinadns import timer
+from greendns import timer
 
 EV_READ = 1
 EV_WRITE = 2

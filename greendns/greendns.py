@@ -4,11 +4,11 @@ import sys
 import logging
 import inspect
 import argparse
-from pychinadns import forwarder
-from pychinadns import ioloop
+from greendns import forwarder
+from greendns import ioloop
 
 
-PKG_NAME = "pychinadns"
+PKG_NAME = "greendns"
 HANDLER_PREFIX = "handler_"
 
 str2level = {
@@ -62,7 +62,7 @@ def check_handler(value):
         raise argparse.ArgumentTypeError("%s is an invalid handler" % value)
 
 
-class ChinaDNS(object):
+class GreenDNS(object):
     '''
         A DNS recursive resolve server to avoid result being poisoned.
     '''
@@ -76,7 +76,7 @@ class ChinaDNS(object):
         )
         parser.add_argument("-h", "--help", action="store_true")
         parser.add_argument("-r", "--handler", type=check_handler,
-                            help="Specify handler class, chinadns|quickest")
+                            help="Specify handler class, greendns|quickest")
         args, remaining_argv = parser.parse_known_args(argv)
         if args.handler is None:
             parser.print_help()
@@ -138,7 +138,7 @@ class ChinaDNS(object):
 
 
 def run(argv):
-    dns = ChinaDNS()
+    dns = GreenDNS()
     dns.parse_config(argv)
     dns.setup_logger()
     dns.init_forwarder()

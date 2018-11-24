@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
-from pychinadns.handler_quickest import QuickestHandler
-from pychinadns.handler_quickest import QuickestRequest
+from greendns.handler_quickest import QuickestHandler
+from greendns.handler_quickest import QuickestRequest
 
 
 @pytest.fixture

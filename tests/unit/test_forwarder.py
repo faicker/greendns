@@ -6,9 +6,9 @@ import signal
 import pytest
 import time
 from six.moves import socketserver
-from pychinadns.forwarder import Forwarder
-from pychinadns.handler_quickest import QuickestHandler
-from pychinadns import ioloop
+from greendns.forwarder import Forwarder
+from greendns.handler_quickest import QuickestHandler
+from greendns import ioloop
 
 
 class UdpEcho1Handler(socketserver.BaseRequestHandler):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pychinadns.timer import Timer
-from pychinadns.timer import TimerManager
+from greendns.timer import Timer
+from greendns.timer import TimerManager
 import time
 
 

@@ -1,6 +1,6 @@
 import sys
 from setuptools import setup, find_packages
-from pychinadns import __version__
+from greendns import __version__
 
 try:
     import pypandoc
@@ -13,9 +13,9 @@ requires = ['dnslib', 'six']
 if py_ver == '2.6':
     requires += ['argparse']
 
-setup(name='pychinadns',
+setup(name='greendns',
       version=__version__,
-      url='https://github.com/faicker/pychinadns',
+      url='https://github.com/faicker/greendns',
       license='MIT',
       platforms=['unix', 'linux', 'osx', 'cygwin', 'win32'],
       author='faicker.mo',
@@ -35,11 +35,11 @@ setup(name='pychinadns',
           '2 2.7 3 3.4 3.5 3.6 3.7'.split()],
       entry_points={
           'console_scripts': [
-              'pychinadns = pychinadns.chinadns:main'
+              'greendns = greendns.greendns:main'
           ],
       },
       packages=find_packages(exclude=['tests', 'tools', 'etc']),
-      data_files=[('etc/pychinadns/', ['etc/pychinadns/chnroute.txt']),
-                  ('etc/pychinadns/', ['etc/pychinadns/iplist.txt'])],
+      data_files=[('etc/greendns/', ['etc/greendns/localroute.txt']),
+                  ('etc/greendns/', ['etc/greendns/iplist.txt'])],
       zip_safe=False,
       install_requires=requires)

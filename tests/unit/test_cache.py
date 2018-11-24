@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 import pytest
-from pychinadns.cache import Cache
+from greendns.cache import Cache
 
 
 @pytest.fixture

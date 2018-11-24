@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pychinadns import handler_base
-from pychinadns import request
+from greendns import handler_base
+from greendns import request
 
 
 class QuickestRequest(request.Request):

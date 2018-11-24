@@ -5,21 +5,21 @@ import logging
 import time
 import argparse
 import dnslib
-from pychinadns import request
-from pychinadns import chinanet
-from pychinadns import handler_base
-from pychinadns import cache
+from greendns import request
+from greendns import localnet
+from greendns import handler_base
+from greendns import cache
 
 
-class ChinaDNSRequest(request.Request):
+class GreenDNSRequest(request.Request):
     def __init__(self):
-        super(ChinaDNSRequest, self).__init__()
+        super(GreenDNSRequest, self).__init__()
         self.qtype = 0
         self.qname = ""
         self.responsed = False
 
 
-class ChinaDNSHandler(handler_base.HandlerBase):
+class GreenDNSHandler(handler_base.HandlerBase):
     '''
         First filter poisoned ip with block iplist.
         Second,
@@ -41,9 +41,9 @@ class ChinaDNSHandler(handler_base.HandlerBase):
         self.locals = {}          # str_ip -> is_local(True/False)
 
     def add_arg(self, parser):
-        parser.add_argument("-f", "--chnroute", dest="chnroute",
+        parser.add_argument("-f", "--localroute", dest="localroute",
                             type=argparse.FileType('r'), required=True,
-                            help="Specify chnroute file")
+                            help="Specify local routes file")
         parser.add_argument("-b", "--blacklist", dest="blacklist",
                             type=argparse.FileType('r'), required=True,
                             help="Specify ip blacklist file")
@@ -54,20 +54,20 @@ class ChinaDNSHandler(handler_base.HandlerBase):
 
     def parse_arg(self, parser, remaining_argv, s_upstream):
         myargs = parser.parse_args(remaining_argv)
-        self.f_chnroute = myargs.chnroute
+        self.f_localroute = myargs.localroute
         self.f_blacklist = myargs.blacklist
         self.using_rfc1918 = myargs.rfc1918
         self.cache_enabled = myargs.cache
         self.s_upstream = s_upstream
 
     def init(self, io_engine):
-        self.cnet = chinanet.ChinaNet(self.f_chnroute,
+        self.cnet = localnet.LocalNet(self.f_localroute,
                                       self.f_blacklist,
                                       self.using_rfc1918)
         i, j = 0, 0
         for upstream in self.s_upstream.split(','):
             ip, port = upstream.split(':')
-            if self.cnet.is_in_china(ip):
+            if self.cnet.is_in_local(ip):
                 self.locals[ip] = True
                 i += 1
             else:
@@ -85,7 +85,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
             io_engine.add_timer(False, 1, self.__decrease_ttl_one)
 
     def get_request(self):
-        return ChinaDNSRequest()
+        return GreenDNSRequest()
 
     def on_client_request(self, req):
         is_continue, raw_resp = False, ""
@@ -193,7 +193,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 if self.locals[ip]:
                     local_result = d
                     if str_ip:
-                        if self.cnet.is_in_china(str_ip):
+                        if self.cnet.is_in_local(str_ip):
                             r[0][0] = 1
                             self.logger.info(
                                 "local server %s:%d returned local addr %s"
@@ -206,7 +206,7 @@ class ChinaDNSHandler(handler_base.HandlerBase):
                 else:
                     foreign_result = d
                     if str_ip:
-                        if not self.cnet.is_in_china(str_ip):
+                        if not self.cnet.is_in_local(str_ip):
                             r[1][0] = 1
                             self.logger.info(
                                 "foregin server %s:%d returned foreign addr %s"
@@ -241,14 +241,14 @@ class ChinaDNSHandler(handler_base.HandlerBase):
     def __parse_A(self, record):
         '''parse a proper A record'''
         str_ip = ""
-        china_ip = ""
+        local_ip = ""
         for rr in record.rr:
             if rr.rtype == dnslib.QTYPE.A:
                 str_ip = str(rr.rdata)
-                if self.cnet.is_in_china(str_ip):
-                    china_ip = str_ip
-        if china_ip:
-            return china_ip
+                if self.cnet.is_in_local(str_ip):
+                    local_ip = str_ip
+        if local_ip:
+            return local_ip
         return str_ip
 
     def __replace_id(self, resp, new_tid):

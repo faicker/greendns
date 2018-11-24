@@ -1,0 +1,13 @@
+[Unit]
+Description=GreenDNS Default Server Service
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+User=root
+LimitNOFILE=32768
+ExecStart=/usr/local/bin/greendns -p 127.0.0.1:53 -r greendns -u 223.5.5.5:53,127.0.0.1:5454 -l debug -f /usr/local/etc/greendns/localroute.txt -b /usr/local/etc/greendns/iplist.txt --cache --rfc1918
+
+[Install]
+WantedBy=multi-user.target

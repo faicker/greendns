@@ -4,7 +4,7 @@ import sys
 import socket
 import time
 import logging
-from pychinadns import ioloop
+from greendns import ioloop
 
 
 class Forwarder(object):
