@@ -3,50 +3,50 @@
 
 # greendns
 
-A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time. It's more efficient and quicker than [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
-You must config at least two dns servers. A part is local and poisoned, the other part is unpoisoned(tunnel through VPN or use OpenDNS 443/5353 port, [dnscrypt-proxy](https://github.com/jedisct1/dnscrypt-proxy) is recommended)
+A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time and don't wait for all responses. It's more efficient and quicker than [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
+
+You must config at least two dns servers. One part is local and poisoned, the other part is unpoisoned(tunnel through VPN or use OpenDNS 443/5353 port, [dnscrypt-proxy](https://github.com/jedisct1/dnscrypt-proxy) is recommended)
 
 ## How it works
 
 ```
 First filter poisoned ip with blocked iplist with -b argument.
 Second,
-                                        | returned ip is local | returned ip is foreign
-     local and poisoned dns server      |    A                 |   B
-     unpoisoned dns server              |    C                 |   D
+                                       | A record is local | A record is foreign
+    local and poisoned dns server      |    a              |   b
+    unpoisoned dns server              |    c              |   d
 
 From the matrix, we get the result as follows,
-AC: use local dns server result
-AD: use local dns server result
-BC: impossible. use unpoisoned dns server result
-BD: use unpoisoned dns server result
+ac: use local dns server result
+ad: use local dns server result
+bc: impossible. use unpoisoned dns server result
+bd: use unpoisoned dns server result
+
+Conclusion,
+Using local dns server result if returned A record is local.
+Using unpoisoned dns server result if returned A record is Foreign.
 ```
 
 It has two assumptions,
 * the polluted domain is foreign.
-* the poisoned result ip is foreign.
+* the A record in poisoned response is foreign.
 
 ## Install
 
 ```bash
-$ pip install greendns
+pip install greendns
 ```
 
 ## Usage
 
 ```bash
-$ greendns -r greendns -u 223.5.5.5:53,208.67.222.222:5353 -l debug -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
-```
-or if 8.8.8.8 is unpoisoned,
-
-```bash
-$ greendns -r greendns -u 223.5.5.5:53,8.8.8.8:53 -l debug -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
+greendns -r greendns -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
 ```
 
 ## Configure
 
 ```bash
-$ greendns -r greendns -h
+greendns -r greendns -h
 usage: greendns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
                    [-l LOGLEVEL] [-m MODE] -f LOCALROUTE -b BLACKLIST
                    [--rfc1918] [--cache]
@@ -57,15 +57,16 @@ optional arguments:
                         Specify handler class, greendns|quickest (default:
                         None)
   -p PORT, --port PORT  Specify listen port or ip (default: 127.0.0.1:5353)
-  -u UPSTREAM, --upstream UPSTREAM
-                        Specify multiple upstream dns servers (default:
-                        223.5.5.5:53,8.8.8.8:53)
   -t TIMEOUT, --timeout TIMEOUT
                         Specify upstream timeout (default: 1.0)
   -l LOGLEVEL, --log-level LOGLEVEL
                         Specify log level, debug|info|warning|error (default:
                         info)
   -m MODE, --mode MODE  Specify io loop mode, select|epoll (default: select)
+  --lds LDS             Specify local poisoned dns servers (default:
+                        223.6.6.6:53,114.114.114.114:53)
+  --rds RDS             Specify unpoisoned dns servers (default:
+                        208.67.222.220:443,193.112.15.186:2323)
   -f LOCALROUTE, --localroute LOCALROUTE
                         Specify local routes file (default: None)
   -b BLACKLIST, --blacklist BLACKLIST

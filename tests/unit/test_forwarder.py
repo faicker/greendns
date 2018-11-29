@@ -44,8 +44,7 @@ def udp_server_process():
 def forwarder(udp_server_process):
     server_addr1, server_addr2 = udp_server_process
     io_engine = ioloop.get_ioloop("select")
-    upstreams = ",".join(["%s:%d" % (addr[0], addr[1])
-                          for addr in (server_addr1, server_addr2)])
+    upstreams = [server_addr1, server_addr2]
     listen = "127.0.0.1:0"
     timeout = 1.0
     handler = QuickestHandler()
@@ -91,7 +90,7 @@ def test_handle_request_from_client(forwarder):
     client.sendto(b"hello\n", forwarder_addr)
     forwarder.handle_request_from_client(forwarder.s_sock)
     client.close()
-    assert len(forwarder.requests) == 2
+    assert len(forwarder.sessions) == 2
 
 
 def test_handle_response_from_upstream(forwarder):
@@ -99,9 +98,12 @@ def test_handle_response_from_upstream(forwarder):
     forwarder_addr = forwarder.s_sock.getsockname()
     client.sendto(b"hello\n", forwarder_addr)
     forwarder.handle_request_from_client(forwarder.s_sock)
-    for sock in list(forwarder.requests):
-        forwarder.handle_response_from_upstream(sock)
-    assert len(forwarder.requests) == 0
+    for sock in list(forwarder.sessions):
+        ret = forwarder.handle_response_from_upstream(sock)
+        assert ret
+    ret = forwarder.handle_response_from_upstream(client) # no session
+    assert not ret
+    assert len(forwarder.sessions) == 0
     data, _ = client.recvfrom(1024)
     client.close()
     assert data in [b"hello\n", b"hello\nhello\n"]
@@ -112,11 +114,11 @@ def test_check_timeout(forwarder):
     forwarder_addr = forwarder.s_sock.getsockname()
     client.sendto(b"hello\n", forwarder_addr)
     forwarder.handle_request_from_client(forwarder.s_sock)
-    assert len(forwarder.requests) == 2
+    assert len(forwarder.sessions) == 2
     time.sleep(1)
     forwarder.check_timeout()
     client.close()
-    assert len(forwarder.requests) == 0
+    assert len(forwarder.sessions) == 0
 
 
 def test_run_forever(running_process):

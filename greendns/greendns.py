@@ -85,9 +85,6 @@ class GreenDNS(object):
         parser.add_argument("-p", "--port",
                             help="Specify listen port or ip",
                             default="127.0.0.1:5353")
-        parser.add_argument("-u", "--upstream",
-                            help="Specify multiple upstream dns servers",
-                            default="223.5.5.5:53,8.8.8.8:53")
         parser.add_argument("-t", "--timeout", type=float,
                             help="Specify upstream timeout",
                             default="1.0")
@@ -104,7 +101,7 @@ class GreenDNS(object):
         if args.help:
             parser.print_help()
             sys.exit(0)
-        args.handler.parse_arg(parser, remaining_argv, args.upstream)
+        args.handler.parse_arg(parser, remaining_argv)
 
         if args.port.find(':') == -1:
             args.listen = "127.0.0.1:%s" % (args.port)
@@ -126,9 +123,9 @@ class GreenDNS(object):
     def init_forwarder(self):
         io_engine = ioloop.get_ioloop(self.args.mode)
         h = self.args.handler
-        h.init(io_engine)
+        upstreams = h.init(io_engine)
         self.forwarder = forwarder.Forwarder(io_engine,
-                                             self.args.upstream,
+                                             upstreams,
                                              self.args.listen,
                                              self.args.timeout,
                                              h)

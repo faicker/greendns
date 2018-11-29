@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from greendns import request
+from greendns import session
 
 
 class HandlerBase(object):
@@ -9,20 +9,27 @@ class HandlerBase(object):
     def add_arg(self, parser):
         pass
 
-    def parse_arg(self, parser, remaining_argv, args):
+    def parse_arg(self, parser, remaining_argv):
         pass
 
     def init(self, io_engine):
-        pass
+        return []
 
-    def get_request(self):
-        return request.Request()
+    def parse_addr(self, s):
+        addr = s.split(':')
+        if len(addr) == 1:
+            return (addr[0], 53)
+        else:
+            return addr[0], int(addr[1])
 
-    def on_client_request(self, req):
+    def get_session(self):
+        return session.Session()
+
+    def on_client_request(self, sess):
         return (True, None)
 
-    def on_upstream_response(self, req):
+    def on_upstream_response(self, sess, addr):
         return None
 
-    def on_timeout(self, req, timeout):
-        return (True, None)
+    def on_timeout(self, sess):
+        return None

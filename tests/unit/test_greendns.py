@@ -50,6 +50,7 @@ class UdpEcho2Handler(socketserver.BaseRequestHandler):
                                a=dnslib.RR(qname,
                                            rdata=dnslib.A("182.254.8.146"),
                                            ttl=3))
+        time.sleep(0.3)
         sock.sendto(bytes(res.pack()), self.client_address)
 
 
@@ -103,9 +104,11 @@ def test_setup_logger(dns):
 
 def test_parse_config(dns):
     dns.parse_config(["-p", "127.0.0.1:42153", "-r", "greendns",
-                      "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
+                      "-l", "debug",
                       "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
+                      "--lds", "127.0.0.1:42125",
+                      "--rds", "127.0.0.2:42126",
                       "--cache"])
     assert dns.args.loglevel == "debug"
     assert dns.args.mode == "select"
@@ -115,9 +118,11 @@ def test_parse_config(dns):
 
 def test_parse_config_without_listen_ip(dns):
     dns.parse_config(["-p", "42153", "-r", "greendns",
-                      "-u", "127.0.0.1:42125,127.0.0.2:42126", "-l", "debug",
+                      "-l", "debug",
                       "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
+                      "--lds", "127.0.0.1:42125",
+                      "--rds", "127.0.0.2:42126",
                       "--cache"])
     assert dns.args.listen == "127.0.0.1:42153"
 
@@ -137,11 +142,11 @@ def test_run_forwarder(dns, udp_server_process):
     addr1, addr2 = udp_server_process
     dns.parse_config(["-p", "127.0.0.1:0",
                       "-r", "greendns",
-                      "-u", "%s:%d,%s:%d" %
-                      (addr1[0], addr1[1], addr2[0], addr2[1]),
                       "-l", "debug",
                       "-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir),
+                      "--lds", "%s:%d" % (addr1[0], addr1[1]),
+                      "--rds", "%s:%d" % (addr2[0], addr2[1]),
                       "--cache"])
     dns.setup_logger()
     dns.init_forwarder()
@@ -152,12 +157,14 @@ def test_run_forwarder(dns, udp_server_process):
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     q = dnslib.DNSRecord.question(qname)
     client.sendto(bytes(q.pack()), forward_addr)
+    time.sleep(0.5)
     data, _ = client.recvfrom(1024)
     d = dnslib.DNSRecord.parse(data)
     assert str(d.rr[0].rdata) == "101.226.103.106"
     assert d.rr[0].ttl == 3
     time.sleep(1.0)
     client.sendto(bytes(q.pack()), forward_addr)
+    time.sleep(0.5)
     data, _ = client.recvfrom(1024)
     d = dnslib.DNSRecord.parse(data)
     assert str(d.rr[0].rdata) == "101.226.103.106"
@@ -167,16 +174,16 @@ def test_run_forwarder(dns, udp_server_process):
     p.join()
 
 
-def test_run(udp_server_process):
+def test_run_with_greendns_handler(udp_server_process):
     addr1, addr2 = udp_server_process
     forward_addr = ("127.0.0.1", 42353)
     argv = ["-p", "%s:%d" % (forward_addr[0], forward_addr[1]),
             "-r", "greendns",
-            "-u", "%s:%d,%s:%d" %
-            (addr1[0], addr1[1], addr2[0], addr2[1]),
             "-l", "debug",
             "-f", "%s/localroute_test.txt" % (mydir),
             "-b", "%s/iplist_test.txt" % (mydir),
+            "--lds", "%s:%d" % (addr1[0], addr1[1]),
+            "--rds", "%s:%d" % (addr2[0], addr2[1]),
             "--cache"]
     p = Process(target=greendns.run, args=(argv,))
     p.start()
@@ -184,6 +191,29 @@ def test_run(udp_server_process):
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     q = dnslib.DNSRecord.question(qname)
     client.sendto(bytes(q.pack()), forward_addr)
+    time.sleep(0.5)
+    data, _ = client.recvfrom(1024)
+    d = dnslib.DNSRecord.parse(data)
+    assert str(d.rr[0].rdata) == "101.226.103.106"
+    client.close()
+    os.kill(p.pid, signal.SIGINT)
+    p.join()
+
+def test_run_with_quickest_handler(udp_server_process):
+    addr1, addr2 = udp_server_process
+    forward_addr = ("127.0.0.1", 42354)
+    argv = ["-p", "%s:%d" % (forward_addr[0], forward_addr[1]),
+            "-r", "quickest",
+            "-l", "debug",
+            "--upstreams",
+                "%s:%d,%s:%d" % (addr1[0], addr1[1], addr2[0], addr2[1])]
+    p = Process(target=greendns.run, args=(argv,))
+    p.start()
+    time.sleep(0.5)
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    q = dnslib.DNSRecord.question(qname)
+    client.sendto(bytes(q.pack()), forward_addr)
+    time.sleep(0.5)
     data, _ = client.recvfrom(1024)
     d = dnslib.DNSRecord.parse(data)
     assert str(d.rr[0].rdata) == "101.226.103.106"
