@@ -32,10 +32,10 @@ setup(name='greendns',
           'Operating System :: Microsoft :: Windows',
           'Operating System :: MacOS :: MacOS X'] + [
           ('Programming Language :: Python :: %s' % x) for x in
-          '2 2.7 3 3.4 3.5 3.6 3.7'.split()],
+          '2 2.6 2.7 3 3.3 3.4 3.5 3.6 3.7'.split()],
       entry_points={
           'console_scripts': [
-              'greendns = greendns.greendns:main'
+              'greendns = greendns.server:main'
           ],
       },
       packages=find_packages(exclude=['tests', 'tools', 'etc']),

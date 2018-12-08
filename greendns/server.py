@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import sys
+import os
 import logging
 import inspect
 import argparse
@@ -8,7 +9,7 @@ from greendns import forwarder
 from greendns import ioloop
 
 
-PKG_NAME = "greendns"
+PKG_NAME = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
 HANDLER_PREFIX = "handler_"
 
 str2level = {

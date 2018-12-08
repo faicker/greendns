@@ -1,0 +1,18 @@
+[[source]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+dnslib = "*"
+six = "*"
+
+[dev-packages]
+"e1839a8" = {editable = true, path = "."}
+pylint = "*"
+pytest = "*"
+coverage = "*"
+pypandoc = "*"
+
+[requires]
+python_version = "3.7"

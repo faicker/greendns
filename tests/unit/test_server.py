@@ -8,7 +8,7 @@ import argparse
 import dnslib
 import pytest
 from six.moves import socketserver
-from greendns import greendns
+from greendns import server
 from greendns.handler_greendns import GreenDNSHandler
 
 
@@ -71,28 +71,28 @@ def udp_server_process():
 
 @pytest.fixture
 def dns():
-    return greendns.GreenDNS()
+    return server.GreenDNS()
 
 
 def test_check_loglevel():
-    for k, v in greendns.str2level.items():
-        assert k == greendns.check_loglevel(k)
+    for k, v in server.str2level.items():
+        assert k == server.check_loglevel(k)
     with pytest.raises(argparse.ArgumentTypeError):
-        greendns.check_loglevel("undefined")
+        server.check_loglevel("undefined")
 
 
 def test_load_mod():
-    mod = greendns.load_mod("greendns", "handler_base")
+    mod = server.load_mod("greendns", "handler_base")
     assert mod is not None
-    mod = greendns.load_mod("greendns", "notexist")
+    mod = server.load_mod("greendns", "notexist")
     assert mod is None
 
 
 def test_check_handler():
-    obj = greendns.check_handler("greendns")
+    obj = server.check_handler("greendns")
     assert obj is not None
     with pytest.raises(SystemExit):
-        greendns.check_handler("notexist")
+        server.check_handler("notexist")
 
 
 def test_setup_logger(dns):
@@ -185,7 +185,7 @@ def test_run_with_greendns_handler(udp_server_process):
             "--lds", "%s:%d" % (addr1[0], addr1[1]),
             "--rds", "%s:%d" % (addr2[0], addr2[1]),
             "--cache"]
-    p = Process(target=greendns.run, args=(argv,))
+    p = Process(target=server.run, args=(argv,))
     p.start()
     time.sleep(0.5)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -207,7 +207,7 @@ def test_run_with_quickest_handler(udp_server_process):
             "-l", "debug",
             "--upstreams",
                 "%s:%d,%s:%d" % (addr1[0], addr1[1], addr2[0], addr2[1])]
-    p = Process(target=greendns.run, args=(argv,))
+    p = Process(target=server.run, args=(argv,))
     p.start()
     time.sleep(0.5)
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

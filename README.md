@@ -1,3 +1,4 @@
+[![PyPI version]][PyPI]
 [![Build Status](https://travis-ci.org/faicker/greendns.svg?branch=master)](https://travis-ci.org/faicker/greendns)
 [![Coverage Status](https://coveralls.io/repos/github/faicker/greendns/badge.svg?branch=master)](https://coveralls.io/github/faicker/greendns?branch=master)
 
