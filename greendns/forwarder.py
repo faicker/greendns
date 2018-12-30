@@ -1,109 +1,64 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import sys
-import socket
 import time
 import logging
-from greendns import ioloop
+import struct
+from greendns import connection
 
 
 class Forwarder(object):
-    BUFSIZE = 2048
-
     def __init__(self, io_engine, upstreams, listen, timeout, handler):
         self.logger = logging.getLogger()
-        self.upstreams = upstreams
-        (ip, port) = listen.split(':')
-        port = int(port)
-        self.listen_addr = (ip, port)
-        self.timeout = timeout
-        self.sessions = {}      # sock -> Session
         self.io_engine = io_engine
         self.handler = handler
-        self.s_sock = None
-        self.s_sock = self.init_listen_sock(self.listen_addr)
-
-    def init_listen_sock(self, listen_addr):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.upstreams = upstreams
+        self.timeout = timeout
+        # Connection -> Session, multi conn using the same Session object
+        self.sessions = {}
+        self.server = connection.UDPConnection(io_engine=self.io_engine)
         try:
-            sock.bind(listen_addr)
-        except socket.error as e:
-            print("error to bind to %s:%d, %s"
-                  % (listen_addr[0], listen_addr[1], e), file=sys.stderr)
+            ip, port = listen.split(':')
+            self.server.bind((ip, int(port)))
+            self.listen_addr = self.server.bind_addr
+        except connection.BindException:
+            print("failed to bind to %s" % listen, file=sys.stderr)
             sys.exit(1)
-        else:
-            return sock
 
     def send_response(self, client_addr, resp):
-        try:
-            self.s_sock.sendto(resp, client_addr)
-        except socket.error as e:
-            self.logger.error("sendto %s:%d failed. error=%s",
-                              client_addr[0], client_addr[1], e)
-            return False
-        self.logger.debug("sendto client %s:%d, data len=%d",
-                          client_addr[0], client_addr[1], len(resp))
-        return True
+        self.server.send(client_addr, resp)
+
+    def should_response(self, sess, addr):
+        if not sess.responsed:
+            resp = self.handler.on_upstream_response(sess, addr)
+            if resp:
+                self.send_response(sess.client_addr, resp)
+                sess.responsed = True
 
     def check_timeout(self):
         '''this is not accurate, max delay is 2 * timeout'''
         to_delete = []
         now = time.time()
-        for sock, sess in self.sessions.items():
+        for conn, sess in self.sessions.items():
             if now < sess.send_ts + self.timeout:
                 continue
-            myaddr = sock.getsockname()
-            self.logger.warning("%s:%d request to upstream timeout",
-                              myaddr[0], myaddr[1])
-            self.io_engine.unregister(sock)
-            sock.close()
-            self.logger.debug("closed sock %s:%d", myaddr[0], myaddr[1])
-            to_delete.append(sock)
-        for sock in to_delete:
-            del self.sessions[sock]
-            self.logger.debug("remaining request size=%d", len(self.sessions))
+            if conn.bind_addr and conn.remote_addr:
+                self.logger.warning("%s:%d request %s:%d to upstream timeout",
+                                    conn.bind_addr[0], conn.bind_addr[1],
+                                    conn.remote_addr[0], conn.remote_addr[1])
+                conn.close()
+            else:
+                self.logger.warning("no bind addr")
+            to_delete.append(conn)
+        for conn in to_delete:
+            del self.sessions[conn]
+        if to_delete:
+            self.logger.debug("remaining client request size=%d", len(self.sessions))
 
-    def handle_response_from_upstream(self, sock):
-        myaddr = sock.getsockname()
-        sess = self.sessions.get(sock)
-        if not sess:
-            self.logger.warning("session %s:%d not found", myaddr[0], myaddr[1])
-            return False
-
-        if not sess.responsed:
-            data = None
-            resp = None
-            try:
-                data, remote_addr = sock.recvfrom(self.BUFSIZE)
-                if data:
-                    self.logger.debug("%s:%d recvfrom upstream %s:%d, data len=%d",
-                                      myaddr[0], myaddr[1],
-                                      remote_addr[0], remote_addr[1],
-                                      len(data))
-                    sess.server_resps[remote_addr] = data
-                    resp = self.handler.on_upstream_response(sess, remote_addr)
-                    if resp:
-                        if self.send_response(sess.client_addr, resp):
-                            sess.responsed = True
-            except socket.error as e:
-                self.logger.error("recvfrom failed. error=%s", e)
-
-        self.io_engine.unregister(sock)
-        sock.close()
-        del self.sessions[sock]
-        self.logger.debug("closed sock %s:%d", myaddr[0], myaddr[1])
-        self.logger.debug("remaining request size=%d", len(self.sessions))
-        return True
-
-    def handle_request_from_client(self, s_sock):
-        assert self.s_sock == s_sock
-        data, remote_addr = self.s_sock.recvfrom(self.BUFSIZE)
-        self.logger.debug("recvfrom client %s:%d, data len=%d",
-                          remote_addr[0], remote_addr[1], len(data))
-        if not data:
+    def handle_request_from_client(self, conn, remote_addr, data, err):
+        if err.errcode != connection.E_OK or not data:
             return
-        sess = self.handler.get_session()
+        sess = self.handler.new_session()
         sess.client_addr = remote_addr
         sess.send_ts = time.time()
         sess.req_data = data
@@ -114,27 +69,78 @@ class Forwarder(object):
         if not is_continue:
             self.logger.error("invalid request from client")
             return
-        for server_addr in self.upstreams:
-            try:
-                sock = None
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.sendto(data, server_addr)
-            except socket.error as e:
-                self.logger.error("sendto %s:%d failed. error=%s",
-                                  server_addr[0], server_addr[1], e)
-                if sock:
-                    sock.close()
+        for addr in self.upstreams:
+            remote_addr = addr[1], addr[2]
+            if addr.protocol == 'udp':
+                conn = connection.UDPConnection(io_engine=self.io_engine)
+                conn.asend(remote_addr, sess.req_data, self.handle_udp_request)
+            elif addr.protocol == 'tcp':
+                conn = connection.TCPConnection(io_engine=self.io_engine)
+                conn.aconnect(remote_addr, self.handle_tcp_connected)
             else:
-                myaddr = sock.getsockname()
-                self.logger.debug("%s:%d sendto upstream %s:%d, data len=%d",
-                                  myaddr[0], myaddr[1], server_addr[0],
-                                  server_addr[1], len(data))
-                self.io_engine.register(sock, ioloop.EV_READ,
-                                        self.handle_response_from_upstream)
-                self.sessions[sock] = sess
+                self.logger.error("invalid protocol %s", addr.protocol)
+                continue
+            if conn:
+                self.sessions[conn] = sess
+
+    def handle_udp_request(self, conn, _, err):
+        if err.errcode == connection.E_OK:
+            conn.arecv(self.handle_udp_response)
+        else:
+            conn.close()
+            del self.sessions[conn]
+
+    def handle_udp_response(self, conn, remote_addr, data, err):
+        sess = self.sessions.get(conn)
+        assert sess
+        conn.close()
+        del self.sessions[conn]
+        if err.errcode == connection.E_OK and data:
+            self.logger.debug("remaining client request size=%d",
+                              len(self.sessions))
+            addr = connection.Addr('udp', remote_addr[0], remote_addr[1])
+            sess.server_resps[addr] = data
+            self.should_response(sess, addr)
+
+    def handle_tcp_connected(self, conn, err):
+        sess = self.sessions.get(conn)
+        assert sess
+        if err.errcode == connection.E_OK:
+            data = struct.pack(">H%us" % len(sess.req_data),
+                               len(sess.req_data), sess.req_data)
+            conn.asend(data, self.handle_tcp_sent)
+        else:
+            conn.close()
+            del self.sessions[conn]
+
+    def handle_tcp_sent(self, conn, err):
+        if err.errcode == connection.E_OK:
+            payload_length_bytes = 2
+            conn.arecv(payload_length_bytes, self.handle_length_recved)
+        else:
+            conn.close()
+            del self.sessions[conn]
+
+    def handle_length_recved(self, conn, data, err):
+        if err.errcode == connection.E_OK:
+            payload_length = struct.unpack(">H", data)[0]
+            conn.arecv(payload_length, self.handle_payload_recved)
+        else:
+            conn.close()
+            del self.sessions[conn]
+
+    def handle_payload_recved(self, conn, data, err):
+        sess = self.sessions.get(conn)
+        assert sess
+        conn.close()
+        del self.sessions[conn]
+        if err.errcode == connection.E_OK:
+            self.logger.debug("remaining client request size=%d", len(self.sessions))
+            addr = connection.Addr('tcp', conn.remote_addr[0], conn.remote_addr[1])
+            sess.server_resps[addr] = data
+            self.should_response(sess, addr)
 
     def run_forever(self):
-        self.io_engine.register(self.s_sock, ioloop.EV_READ,
-                                self.handle_request_from_client)
         self.io_engine.add_timer(False, self.timeout, self.check_timeout)
-        self.io_engine.run()
+        self.server.arecv(self.handle_request_from_client)
+        self.server.run()

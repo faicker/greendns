@@ -150,7 +150,7 @@ def test_run_forwarder(dns, udp_server_process):
                       "--cache"])
     dns.setup_logger()
     dns.init_forwarder()
-    forward_addr = dns.forwarder.s_sock.getsockname()
+    forward_addr = dns.forwarder.listen_addr
     p = Process(target=dns.run_forwarder)
     p.start()
     time.sleep(0.5)

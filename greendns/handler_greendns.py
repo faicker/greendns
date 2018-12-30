@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+import os
 import logging
 import time
 import argparse
 import dnslib
 from greendns import session
+from greendns import connection
 from greendns import localnet
 from greendns import handler_base
 from greendns import cache
@@ -49,17 +51,21 @@ class GreenDNSHandler(handler_base.HandlerBase):
         self.unpoisoned_servers = []
 
     def add_arg(self, parser):
+        cwd = os.path.dirname(os.path.realpath(__file__))
+        program_dir = os.path.abspath(cwd + "/../../../../")
         parser.add_argument("--lds",
                             help="Specify local poisoned dns servers",
-                            default="223.6.6.6:53,114.114.114.114:53")
+                            default="223.5.5.5:53,114.114.114.114:53")
         parser.add_argument("--rds",
                             help="Specify unpoisoned dns servers",
-                            default="208.67.222.220:443,193.112.15.186:2323")
+                            default="tcp:208.67.222.220:443,193.112.15.186:2323")
         parser.add_argument("-f", "--localroute", dest="localroute",
-                            type=argparse.FileType('r'), required=True,
+                            type=argparse.FileType('r'),
+                            default="%s/etc/greendns/localroute.txt" % (program_dir),
                             help="Specify local routes file")
         parser.add_argument("-b", "--blacklist", dest="blacklist",
-                            type=argparse.FileType('r'), required=True,
+                            type=argparse.FileType('r'),
+                            default="%s/etc/greendns/blacklist.txt" % (program_dir),
                             help="Specify ip blacklist file")
         parser.add_argument("--rfc1918", dest="rfc1918", action="store_true",
                             help="Specify if rfc1918 ip is local")
@@ -80,16 +86,22 @@ class GreenDNSHandler(handler_base.HandlerBase):
                                       self.f_blacklist,
                                       self.using_rfc1918)
         for l in self.lds.split(','):
-            self.local_servers.append(self.parse_addr(l))
+            addr = connection.parse_addr(l)
+            if addr is None:
+                return []
+            self.local_servers.append(addr)
         for r in self.rds.split(','):
-            self.unpoisoned_servers.append(self.parse_addr(r))
+            addr = connection.parse_addr(r)
+            if addr is None:
+                return []
+            self.unpoisoned_servers.append(addr)
 
         if self.cache_enabled:
             io_engine.add_timer(False, 1, self.__decrease_ttl_one)
 
         return self.local_servers + self.unpoisoned_servers
 
-    def get_session(self):
+    def new_session(self):
         return GreenDNSSession()
 
     def on_client_request(self, sess):
@@ -152,7 +164,7 @@ class GreenDNSHandler(handler_base.HandlerBase):
             return None
         try:
             d = dnslib.DNSRecord.parse(data)
-            self.logger.debug("%s:%d response detail,\n%s", addr[0], addr[1], d)
+            self.logger.debug("%s:%s:%d response detail,\n%s", addr[0], addr[1], addr[2], d)
             return d
         except Exception as e:
             self.logger.error("parse response error, msg=%s, data=%s",
@@ -170,8 +182,8 @@ class GreenDNSHandler(handler_base.HandlerBase):
                               e, data)
             return None
         str_ip = self.__parse_A(d)
-        self.logger.info("%s:%d answered ip=%s", addr[0], addr[1], str_ip)
-        self.logger.debug("%s:%d response detail,\n%s", addr[0], addr[1], d)
+        self.logger.info("%s:%s:%d answered ip=%s", addr[0], addr[1], addr[2], str_ip)
+        self.logger.debug("%s:%s:%d response detail,\n%s", addr[0], addr[1], addr[2], d)
         if self.cnet.is_in_blacklist(str_ip):
             self.logger.info("ip %s is in blacklist", str_ip)
             sess.is_poisoned = True
@@ -184,13 +196,13 @@ class GreenDNSHandler(handler_base.HandlerBase):
                 if self.cnet.is_in_local(str_ip):
                     sess.matrix[0][0] = 1
                     self.logger.info(
-                        "local server %s:%d returned local addr %s",
-                        addr[0], addr[1], str_ip)
+                        "local server %s:%s:%d returned local addr %s",
+                        addr[0], addr[1], addr[2], str_ip)
                 else:
                     sess.matrix[0][1] = 1
                     self.logger.info(
-                        "local server %s:%d returned foreign addr %s",
-                        addr[0], addr[1], str_ip)
+                        "local server %s:%s:%d returned foreign addr %s",
+                        addr[0], addr[1], addr[2], str_ip)
         elif addr in self.unpoisoned_servers:
             if sess.unpoisoned_result:
                 return None

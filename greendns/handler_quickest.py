@@ -2,6 +2,7 @@
 import logging
 from greendns import handler_base
 from greendns import session
+from greendns import connection
 
 
 class QuickestSession(session.Session):
@@ -25,11 +26,14 @@ class QuickestHandler(handler_base.HandlerBase):
         self.upstreams = myargs.upstreams
 
     def init(self, io_engine):
-        for addr in self.upstreams.split(','):
-            self.servers.append(self.parse_addr(addr))
+        for upstream in self.upstreams.split(','):
+            addr = connection.parse_addr(upstream)
+            if addr is None:
+                return []
+            self.servers.append(addr)
         return self.servers
 
-    def get_session(self):
+    def new_session(self):
         return QuickestSession()
 
     def on_upstream_response(self, sess, addr):

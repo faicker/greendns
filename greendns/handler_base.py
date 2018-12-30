@@ -15,14 +15,7 @@ class HandlerBase(object):
     def init(self, io_engine):
         return []
 
-    def parse_addr(self, s):
-        addr = s.split(':')
-        if len(addr) == 1:
-            return (addr[0], 53)
-        else:
-            return addr[0], int(addr[1])
-
-    def get_session(self):
+    def new_session(self):
         return session.Session()
 
     def on_client_request(self, sess):

@@ -18,10 +18,8 @@
         <string>127.0.0.1:53</string>
         <string>-r</string>
         <string>greendns</string>
-        <string>-u</string>
-        <string>223.5.5.5:53,127.0.0.1:5454</string>
         <string>-l</string>
-        <string>debug</string>
+        <string>info</string>
         <string>-f</string>
         <string>etc/greendns/localroute.txt</string>
         <string>-b</string>

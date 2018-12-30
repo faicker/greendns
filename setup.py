@@ -2,12 +2,6 @@ import sys
 from setuptools import setup, find_packages
 from greendns import __version__
 
-try:
-    import pypandoc
-    long_description = pypandoc.convert_file('README.md', 'rst')
-except ImportError:
-    long_description = open('README.md').read()
-
 py_ver = sys.version[:3]
 requires = ['dnslib', 'six']
 if py_ver == '2.6':
@@ -21,7 +15,8 @@ setup(name='greendns',
       author='faicker.mo',
       author_email='faicker.mo@gmail.com',
       description='A non-poisonous and CDN-friendly Recursive DNS Resolver',
-      long_description=long_description,
+      long_description=open('README.md').read(),
+      long_description_content_type='text/markdown',
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Intended Audience :: System Administrators',

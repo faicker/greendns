@@ -10,13 +10,13 @@ def quickest():
     return h
 
 
-def test_get_session(quickest):
-    s = quickest.get_session()
+def test_new_session(quickest):
+    s = quickest.new_session()
     assert isinstance(s, QuickestSession)
 
 
 def test_on_upstream_response(quickest):
-    s = quickest.get_session()
+    s = quickest.new_session()
     addr = ("223.5.5.5", 53)
     s.server_resps[addr] = "123456"
     resp = quickest.on_upstream_response(s, addr)

@@ -12,7 +12,6 @@ six = "*"
 pylint = "*"
 pytest = "*"
 coverage = "*"
-pypandoc = "*"
 
 [requires]
 python_version = "3.7"

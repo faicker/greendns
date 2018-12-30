@@ -41,37 +41,39 @@ pip install greendns
 ## Usage
 
 ```bash
-greendns -r greendns -f /usr/etc/greendns/localroute.txt -b /usr/etc/greendns/iplist.txt
+greendns -r greendns -f etc/greendns/localroute.txt -b etc/greendns/iplist.txt
 ```
 
 ## Configure
 
 ```bash
 greendns -r greendns -h
-usage: greendns.py [-h] [-r HANDLER] [-p PORT] [-u UPSTREAM] [-t TIMEOUT]
-                   [-l LOGLEVEL] [-m MODE] -f LOCALROUTE -b BLACKLIST
-                   [--rfc1918] [--cache]
+usage: greendns [-h] [-r HANDLER] [-p PORT] [-t TIMEOUT] [-l LOGLEVEL]
+                [-m MODE] [--lds LDS] [--rds RDS] [-f LOCALROUTE]
+                [-b BLACKLIST] [--rfc1918] [--cache]
 
 optional arguments:
   -h, --help
   -r HANDLER, --handler HANDLER
                         Specify handler class, greendns|quickest (default:
                         None)
-  -p PORT, --port PORT  Specify listen port or ip (default: 127.0.0.1:5353)
+  -p PORT, --port PORT  Specify listen port or ip (default: 127.0.0.1:1053)
   -t TIMEOUT, --timeout TIMEOUT
-                        Specify upstream timeout (default: 1.0)
+                        Specify upstream timeout (default: 1.5)
   -l LOGLEVEL, --log-level LOGLEVEL
                         Specify log level, debug|info|warning|error (default:
                         info)
   -m MODE, --mode MODE  Specify io loop mode, select|epoll (default: select)
   --lds LDS             Specify local poisoned dns servers (default:
-                        223.6.6.6:53,114.114.114.114:53)
+                        223.5.5.5:53,114.114.114.114:53)
   --rds RDS             Specify unpoisoned dns servers (default:
-                        208.67.222.220:443,193.112.15.186:2323)
+                        tcp:208.67.222.220:443,193.112.15.186:2323)
   -f LOCALROUTE, --localroute LOCALROUTE
-                        Specify local routes file (default: None)
+                        Specify local routes file (default:
+                        /home/etc/greendns/localroute.txt)
   -b BLACKLIST, --blacklist BLACKLIST
-                        Specify ip blacklist file (default: None)
+                        Specify ip blacklist file (default:
+                        /home/etc/greendns/blacklist.txt)
   --rfc1918             Specify if rfc1918 ip is local (default: False)
   --cache               Specify if cache is enabled (default: False)
 ```

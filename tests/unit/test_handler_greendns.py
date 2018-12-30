@@ -6,10 +6,11 @@ import pytest
 import dnslib
 from greendns.handler_greendns import GreenDNSHandler
 from greendns.handler_greendns import GreenDNSSession
+from greendns.connection import Addr
 
 mydir = os.path.dirname(os.path.abspath(__file__))
-local_dns1 = ("223.5.5.5", 53)
-foreign_dns = ("8.8.8.8", 53)
+local_dns1 = Addr("udp", "223.5.5.5", 53)
+foreign_dns = Addr("udp", "8.8.8.8", 53)
 
 
 class IOEngineMock(object):
@@ -20,7 +21,7 @@ class IOEngineMock(object):
 def init_greendns_session(greendns, qname, qtype, id=1234):
     q = dnslib.DNSRecord.question(qname)
     q.header.id = id
-    s = greendns.get_session()
+    s = greendns.new_session()
     s.qname = qname
     s.qtype = qtype
     s.client_addr = ("127.0.0.1", 50453)
@@ -34,8 +35,10 @@ def make_handler():
     h.add_arg(parser)
     remaining_argv = ["-f", "%s/localroute_test.txt" % (mydir),
                       "-b", "%s/iplist_test.txt" % (mydir), "--cache",
-                      "--lds", "%s:%d" % (local_dns1[0], local_dns1[1]),
-                      "--rds", "%s:%d" % (foreign_dns[0], foreign_dns[1])]
+                      "--lds", "%s:%d" % (local_dns1[1], local_dns1[2]),
+                      "--rds",
+                      "%s:%s:%d" %
+                      (foreign_dns[0], foreign_dns[1], foreign_dns[2])]
     h.parse_arg(parser, remaining_argv)
     return h
 
@@ -51,12 +54,12 @@ def test_init():
     h = make_handler()
     io_engine = IOEngineMock()
     servers = h.init(io_engine)
-    assert servers[0] == (local_dns1[0], local_dns1[1])
-    assert servers[1] == (foreign_dns[0], foreign_dns[1])
+    assert servers[0] == local_dns1
+    assert servers[1] == foreign_dns
 
 
-def test_get_session(greendns):
-    s = greendns.get_session()
+def test_new_session(greendns):
+    s = greendns.new_session()
     assert isinstance(s, GreenDNSSession)
 
 

@@ -14,6 +14,7 @@ class IOLoop(object):
         self.rd_socks = {}    # sock -> callback
         self.wr_socks = {}
         self.err_callback = None
+        self.running = True
         self.tm = timer.TimerManager()
 
     def register(self, sock, events, callback, *args, **kwargs):
@@ -36,6 +37,9 @@ class IOLoop(object):
 
     def run(self):
         pass
+
+    def stop(self):
+        self.running = False
 
     def check_timer(self):
         self.tm.check_timer()
@@ -70,7 +74,7 @@ class Select(IOLoop):
     def run(self):
         if len(self.rlist) == 0 and len(self.wlist) == 0:
             return
-        while True:
+        while self.running:
             try:
                 self.check_timer()
                 (rl, wl, el) = select.select(self.rlist, self.wlist,
@@ -142,7 +146,7 @@ class Epoll(IOLoop):
             return True
 
     def run(self):
-        while True:
+        while self.running:
             try:
                 self.check_timer()
                 events = self.epoll.poll(self.MIN_INTERVAL)

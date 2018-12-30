@@ -81,14 +81,14 @@ class GreenDNS(object):
         args, remaining_argv = parser.parse_known_args(argv)
         if args.handler is None:
             parser.print_help()
-            sys.exit(0)
+            sys.exit(1)
 
         parser.add_argument("-p", "--port",
                             help="Specify listen port or ip",
-                            default="127.0.0.1:5353")
+                            default="127.0.0.1:1053")
         parser.add_argument("-t", "--timeout", type=float,
                             help="Specify upstream timeout",
-                            default="1.0")
+                            default="1.5")
         parser.add_argument("-l", "--log-level", dest="loglevel",
                             type=check_loglevel,
                             help="Specify log level, debug|info|warning|error",
@@ -125,6 +125,9 @@ class GreenDNS(object):
         io_engine = ioloop.get_ioloop(self.args.mode)
         h = self.args.handler
         upstreams = h.init(io_engine)
+        if not upstreams:
+            print("invalid upstreams")
+            sys.exit(1)
         self.forwarder = forwarder.Forwarder(io_engine,
                                              upstreams,
                                              self.args.listen,

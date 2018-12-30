@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 
-dnsperf -p 1053 -S 3 -Q 50 -d ./domain.txt -l 10
+qps=50
+period=20
+
+dnsperf -p 1053 -S 3 -Q $qps -d ./domain.txt -l $period
