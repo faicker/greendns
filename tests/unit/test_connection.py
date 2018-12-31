@@ -5,11 +5,17 @@ import signal
 import time
 import random
 import socket
+import logging
 from multiprocessing import Process
 import pytest
 from six.moves import socketserver
 from greendns import connection
 from greendns import ioloop
+
+logger = logging.getLogger()
+ch = logging.StreamHandler()
+logger.addHandler(ch)
+logger.setLevel(logging.DEBUG)
 
 # udp
 class UdpEchoHandler(socketserver.BaseRequestHandler):
@@ -21,7 +27,9 @@ class UdpEchoHandler(socketserver.BaseRequestHandler):
 
 @pytest.fixture
 def udp_server_process():
-    s = socketserver.UDPServer(("127.0.0.1", 0), UdpEchoHandler)
+    s = socketserver.UDPServer(
+        ("127.0.0.1", random.randint(20000, 30000)),
+        UdpEchoHandler)
     server_addr = s.server_address
     p = Process(target=s.serve_forever)
     p.start()
@@ -94,7 +102,9 @@ class TcpEchoHandler(socketserver.BaseRequestHandler):
 
 @pytest.fixture
 def tcp_server_process():
-    server = socketserver.TCPServer(("127.0.0.1", 0), TcpEchoHandler)
+    server = socketserver.TCPServer(
+        ("127.0.0.1", random.randint(20000, 30000)),
+        TcpEchoHandler)
     server_addr = server.server_address
     pcs = Process(target=server.serve_forever)
     pcs.start()
@@ -172,7 +182,9 @@ def test_aconnect_fail():
     client.run()
 
 def test_arecv_zero():
-    server = socketserver.TCPServer(("127.0.0.1", 0), TcpEchoHandler)
+    server = socketserver.TCPServer(
+        ("127.0.0.1", random.randint(20000, 30000)),
+        TcpEchoHandler)
     server_addr = server.server_address
     pcs = Process(target=server.serve_forever)
     pcs.start()
@@ -183,7 +195,6 @@ def test_arecv_zero():
         client.close()
         client.stop()
         assert not data
-        assert err.errcode == connection.E_OK
 
     def on_sent(conn, err):
         assert err.errcode == connection.E_OK

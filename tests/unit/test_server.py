@@ -2,6 +2,7 @@
 import os
 import signal
 import time
+import random
 from multiprocessing import Process
 import socket
 import argparse
@@ -56,11 +57,15 @@ class UdpEcho2Handler(socketserver.BaseRequestHandler):
 
 @pytest.fixture
 def udp_server_process():
-    s1 = socketserver.UDPServer(("127.0.0.1", 0), UdpEcho1Handler)
+    s1 = socketserver.UDPServer(
+        ("127.0.0.1", random.randint(20000, 30000)),
+        UdpEcho1Handler)
     server_addr1 = s1.server_address
     p1 = Process(target=s1.serve_forever)
     p1.start()
-    s2 = socketserver.UDPServer((myip, 0), UdpEcho2Handler)
+    s2 = socketserver.UDPServer(
+        (myip, random.randint(20000, 30000)),
+        UdpEcho2Handler)
     server_addr2 = s2.server_address
     p2 = Process(target=s2.serve_forever)
     p2.start()

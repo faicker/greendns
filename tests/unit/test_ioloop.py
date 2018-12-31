@@ -3,6 +3,7 @@ import os
 import signal
 import sys
 import socket
+import random
 from multiprocessing import Process, Pipe
 import pytest
 from six.moves import socketserver
@@ -27,9 +28,11 @@ def iol(request):
     return ioloop.get_ioloop(request.param)
 
 
-@pytest.fixture(scope='class')
+@pytest.fixture
 def udp_server_process():
-    s = socketserver.UDPServer(("127.0.0.1", 0), UdpEchoHandler)
+    s = socketserver.UDPServer(
+        ("127.0.0.1", random.randint(20000, 30000)),
+        UdpEchoHandler)
     p = Process(target=s.serve_forever)
     p.start()
     yield s.server_address
@@ -59,6 +62,7 @@ class TestIOLoop:
 
     def test_run(self, iol, udp_server_process):
         server_addr = udp_server_process
+        print("server addr is %s:%d" %(server_addr[0], server_addr[1]))
         parent_conn, child_conn = Pipe()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         iol.register(sock, ioloop.EV_WRITE, self.write_func, iol, server_addr)

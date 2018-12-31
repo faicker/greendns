@@ -8,10 +8,12 @@ dnslib = "*"
 six = "*"
 
 [dev-packages]
-"e1839a8" = {editable = true, path = "."}
-pylint = "*"
+e1839a8 = {editable = true,path = "."}
+virtualenv = "==16.0.0"
 pytest = "*"
 coverage = "*"
+tox = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.7"

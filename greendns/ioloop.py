@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import select
-import traceback
 from greendns import timer
 
 EV_READ = 1
@@ -75,24 +74,21 @@ class Select(IOLoop):
         if len(self.rlist) == 0 and len(self.wlist) == 0:
             return
         while self.running:
-            try:
-                self.check_timer()
-                (rl, wl, el) = select.select(self.rlist, self.wlist,
-                                             self.elist, self.MIN_INTERVAL)
-                for sock in rl:
-                    callback, args, kwargs = self.rd_socks.get(sock)
-                    if callback:
-                        callback(sock, *args, **kwargs)
-                for sock in wl:
-                    callback, args, kwargs = self.wr_socks.get(sock)
-                    if callback:
-                        callback(sock, *args, **kwargs)
-                if self.err_callback:
-                    for sock in el:
-                        self.err_callback[0](sock, *self.err_callback[1],
-                                             **self.err_callback[2])
-            except Exception as e:
-                print("exception, %s\n%s" % (e, traceback.format_exc()))
+            self.check_timer()
+            (rl, wl, el) = select.select(self.rlist, self.wlist,
+                                         self.elist, self.MIN_INTERVAL)
+            for sock in rl:
+                callback, args, kwargs = self.rd_socks.get(sock)
+                if callback:
+                    callback(sock, *args, **kwargs)
+            for sock in wl:
+                callback, args, kwargs = self.wr_socks.get(sock)
+                if callback:
+                    callback(sock, *args, **kwargs)
+            if self.err_callback:
+                for sock in el:
+                    self.err_callback[0](sock, *self.err_callback[1],
+                                         **self.err_callback[2])
 
 
 class Epoll(IOLoop):
@@ -147,27 +143,24 @@ class Epoll(IOLoop):
 
     def run(self):
         while self.running:
-            try:
-                self.check_timer()
-                events = self.epoll.poll(self.MIN_INTERVAL)
-                for fd, event in events:
-                    sock = self.fd2socks.get(fd)
-                    if not sock:
-                        continue
-                    if event & select.EPOLLERR or event & select.EPOLLHUP:
-                        if self.err_callback:
-                            self.err_callback[0](sock, *self.err_callback[1],
-                                                 **self.err_callback[2])
-                    elif event & select.EPOLLIN:
-                        callback, args, kwargs = self.rd_socks.get(sock)
-                        if callback:
-                            callback(sock, *args, **kwargs)
-                    elif event & select.EPOLLOUT:
-                        callback, args, kwargs = self.wr_socks.get(sock)
-                        if callback:
-                            callback(sock, *args, **kwargs)
-            except Exception as e:
-                print("exception, %s\n%s" % (e, traceback.format_exc()))
+            self.check_timer()
+            events = self.epoll.poll(self.MIN_INTERVAL)
+            for fd, event in events:
+                sock = self.fd2socks.get(fd)
+                if not sock:
+                    continue
+                if event & select.EPOLLERR or event & select.EPOLLHUP:
+                    if self.err_callback:
+                        self.err_callback[0](sock, *self.err_callback[1],
+                                             **self.err_callback[2])
+                elif event & select.EPOLLIN:
+                    callback, args, kwargs = self.rd_socks.get(sock)
+                    if callback:
+                        callback(sock, *args, **kwargs)
+                elif event & select.EPOLLOUT:
+                    callback, args, kwargs = self.wr_socks.get(sock)
+                    if callback:
+                        callback(sock, *args, **kwargs)
 
 
 def get_ioloop(name="select"):
