@@ -1,6 +1,7 @@
-[![PyPI version]][PyPI]
+[![Package](https://img.shields.io/pypi/v/greendns.svg)](https://pypi.python.org/pypi/greendns)
 [![Build Status](https://travis-ci.org/faicker/greendns.svg?branch=master)](https://travis-ci.org/faicker/greendns)
 [![Coverage Status](https://coveralls.io/repos/github/faicker/greendns/badge.svg?branch=master)](https://coveralls.io/github/faicker/greendns?branch=master)
+[![CodeHealth](https://landscape.io/github/faicker/greendns/master/landscape.svg?style=flat)](https://landscape.io/github/faicker/greendns/master)
 
 # greendns
 
@@ -73,7 +74,7 @@ optional arguments:
                         /home/etc/greendns/localroute.txt)
   -b BLACKLIST, --blacklist BLACKLIST
                         Specify ip blacklist file (default:
-                        /home/etc/greendns/blacklist.txt)
+                        /home/etc/greendns/iplist.txt)
   --rfc1918             Specify if rfc1918 ip is local (default: False)
   --cache               Specify if cache is enabled (default: False)
 ```

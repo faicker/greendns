@@ -65,7 +65,7 @@ class GreenDNSHandler(handler_base.HandlerBase):
                             help="Specify local routes file")
         parser.add_argument("-b", "--blacklist", dest="blacklist",
                             type=argparse.FileType('r'),
-                            default="%s/etc/greendns/blacklist.txt" % (program_dir),
+                            default="%s/etc/greendns/iplist.txt" % (program_dir),
                             help="Specify ip blacklist file")
         parser.add_argument("--rfc1918", dest="rfc1918", action="store_true",
                             help="Specify if rfc1918 ip is local")
