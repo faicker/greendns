@@ -70,7 +70,6 @@ class TestIOLoop:
         p.start()
         assert parent_conn.recv()
         parent_conn.close()
-        iol.unregister(sock)
         sock.close()
         os.kill(p.pid, signal.SIGINT)
         p.join()
@@ -78,11 +77,12 @@ class TestIOLoop:
     def write_func(self, sock, iol, server_addr, child_conn):
         sock.sendto(b"hello\n", server_addr)
         iol.unregister(sock, ioloop.EV_WRITE)
-        iol.register(sock, ioloop.EV_READ, self.read_func, child_conn)
+        iol.register(sock, ioloop.EV_READ, self.read_func, child_conn, iol)
 
-    def read_func(self, sock, child_conn):
+    def read_func(self, sock, child_conn, iol):
         (data, _) = sock.recvfrom(1024)
         assert data == b"hello\n"
+        iol.on_close_sock(sock)
+        sock.close()
         child_conn.send(True)
         child_conn.close()
-        sock.close()
