@@ -232,3 +232,31 @@ def test_on_upstream_response_invalid_not_A(greendns):
     s.server_resps[local_dns1] = b'123456'
     resp = greendns.on_upstream_response(s, local_dns1)
     assert not resp
+
+def test_shuffer_A(greendns):
+    qname = "qq.com"
+    id = 1024
+    s = init_greendns_session(greendns, qname, dnslib.QTYPE.A, id)
+    res = dnslib.DNSRecord(dnslib.DNSHeader(qr=1, aa=1, ra=1),
+                           q=dnslib.DNSQuestion(qname),
+                           a=dnslib.RR(qname,
+                                       dnslib.QTYPE.CNAME,
+                                       rdata=dnslib.CNAME("https.qq.com"),
+                                       ttl=3))
+    res.add_answer(dnslib.RR(qname,
+                             rdata=dnslib.A("101.226.103.106"),
+                             ttl=3))
+    res.add_answer(dnslib.RR(qname,
+                             rdata=dnslib.A("101.226.103.107"),
+                             ttl=3))
+    greendns.cache.add(("qq.com.", 1), res, 3)
+    d = None
+    for i in range(10):
+        is_continue, raw_resp = greendns.on_client_request(s)
+        assert not is_continue
+        assert raw_resp
+        d = dnslib.DNSRecord.parse(raw_resp)
+        if str(d.rr[1].rdata) == "101.226.103.107":
+            break
+    assert d.rr[0].rtype == dnslib.QTYPE.CNAME
+    assert str(d.rr[1].rdata) == "101.226.103.107"

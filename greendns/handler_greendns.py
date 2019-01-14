@@ -2,9 +2,9 @@
 from __future__ import print_function
 import os
 import logging
-import time
 import argparse
 import dnslib
+import random
 from greendns import session
 from greendns import connection
 from greendns import localnet
@@ -123,7 +123,9 @@ class GreenDNSHandler(handler_base.HandlerBase):
         if self.cache_enabled:
             resp = self.cache.find((qname, qtype))
             if resp:
-                self.__replace_id(resp, tid)
+                self.__replace_id(resp.header, tid)
+                if qtype == dnslib.QTYPE.A:
+                    self.__shuffer_A(resp)
                 self.logger.info("cache hit")
                 self.logger.debug("response detail,\n%s", resp)
                 return (is_continue, bytes(resp.pack()))
@@ -220,17 +222,14 @@ class GreenDNSHandler(handler_base.HandlerBase):
         resp = None
         if m[0][0]:
             resp = local_result
+            self.logger.info("using local result")
         elif m[0][1] or is_poisoned:
             resp = unpoisoned_result
+            self.logger.info("using unpoisoned result")
         elif local_result:
             # empty body, no IP
             resp = unpoisoned_result
-        # log
-        if resp:
-            if resp == local_result:
-                self.logger.info("using local result")
-            else:
-                self.logger.info("using unpoisoned result")
+            self.logger.info("using unpoisoned result")
         return resp
 
     def __parse_A(self, record):
@@ -246,9 +245,24 @@ class GreenDNSHandler(handler_base.HandlerBase):
             return local_ip
         return str_ip
 
-    def __replace_id(self, resp, new_tid):
-        resp.header.id = new_tid
-        return resp
+    def __replace_id(self, header, new_tid):
+        header.id = new_tid
+
+    def __shuffer_A(self, resp):
+        beg, end = 0, 0
+        rr_A, rr_other = [], []
+        for idx, rr in enumerate(resp.rr):
+            if rr.rtype == dnslib.QTYPE.A:
+                rr_A.append(rr)
+                if not beg:
+                    beg = idx
+                else:
+                    end = idx
+            else:
+                rr_other.append(rr)
+        if beg > 0 and end == len(resp.rr) - 1:
+            random.shuffle(rr_A)
+            resp.rr = rr_other + rr_A
 
     def __decrease_ttl_one(self):
         l = []

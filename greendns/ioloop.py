@@ -30,6 +30,9 @@ class IOLoop(object):
             self.wr_socks.pop(sock, None)
         return True
 
+    def on_close_sock(self, sock):
+        pass
+
     def set_err_callback(self, callback, *args, **kwargs):
         self.err_callback = (callback, args, kwargs)
         return True
@@ -58,7 +61,7 @@ class Select(IOLoop):
         self.rlist = list(self.rd_socks)
         self.wlist = list(self.wr_socks)
         s = set(self.rlist + self.wlist)
-        self.elist = [f for f in s]
+        self.elist = list(s)
 
     def register(self, sock, events, callback, *args, **kwargs):
         super(Select, self).register(sock, events, callback, *args, **kwargs)
@@ -70,8 +73,11 @@ class Select(IOLoop):
         self.__make_list()
         return True
 
+    def on_close_sock(self, sock):
+        self.unregister(sock)
+
     def run(self):
-        if len(self.rlist) == 0 and len(self.wlist) == 0:
+        if self.rlist and self.wlist:
             return
         while self.running:
             self.check_timer()
@@ -100,11 +106,7 @@ class Epoll(IOLoop):
     def register(self, sock, events, callback, *args, **kwargs):
         ev = select.EPOLLERR | select.EPOLLHUP
         need_modify = False
-        if sock in self.rd_socks:
-            ev |= select.EPOLLIN
-            need_modify = True
-        if sock in self.wr_socks:
-            ev |= select.EPOLLOUT
+        if sock.fileno() in self.fd2socks:
             need_modify = True
         if events & EV_READ:
             ev |= select.EPOLLIN
@@ -115,31 +117,28 @@ class Epoll(IOLoop):
         else:
             try:
                 self.epoll.register(sock.fileno(), ev)
-            except IOError:
+            except (IOError, OSError):
                 return False
             else:
                 self.fd2socks[sock.fileno()] = sock
-        super(Epoll, self).register(sock, events, callback, *args, **kwargs)
-        return True
+        return super(Epoll, self).register(sock, events, callback, *args, **kwargs)
 
     def unregister(self, sock, events=EV_READ | EV_WRITE):
-        super(Epoll, self).unregister(sock, events)
-        if events == EV_READ | EV_WRITE:
-            self.epoll.unregister(sock)
-            ck = self.fd2socks.pop(sock.fileno(), None)
-            if ck:
-                return True
-            else:
-                return False
-        else:
-            ev = select.EPOLLERR | select.EPOLLHUP | \
-                select.EPOLLIN | select.EPOLLOUT
-            if events & EV_READ:
-                ev ^= select.EPOLLIN
-            if events & EV_WRITE:
-                ev ^= select.EPOLLOUT
-            self.epoll.modify(sock.fileno(), ev)
-            return True
+        if not super(Epoll, self).unregister(sock, events):
+            return False
+        ev = select.EPOLLERR | select.EPOLLHUP | \
+            select.EPOLLIN | select.EPOLLOUT
+        if events & EV_READ:
+            ev ^= select.EPOLLIN
+        if events & EV_WRITE:
+            ev ^= select.EPOLLOUT
+        self.epoll.modify(sock.fileno(), ev)
+        return True
+
+    def on_close_sock(self, sock):
+        super(Epoll, self).unregister(sock)
+        self.epoll.unregister(sock)
+        self.fd2socks.pop(sock.fileno())
 
     def run(self):
         while self.running:
@@ -153,12 +152,18 @@ class Epoll(IOLoop):
                     if self.err_callback:
                         self.err_callback[0](sock, *self.err_callback[1],
                                              **self.err_callback[2])
-                elif event & select.EPOLLIN:
-                    callback, args, kwargs = self.rd_socks.get(sock)
+                if event & select.EPOLLIN:
+                    result = self.rd_socks.get(sock)
+                    if not result:
+                        continue
+                    callback, args, kwargs = result
                     if callback:
                         callback(sock, *args, **kwargs)
-                elif event & select.EPOLLOUT:
-                    callback, args, kwargs = self.wr_socks.get(sock)
+                if event & select.EPOLLOUT:
+                    result = self.wr_socks.get(sock)
+                    if not result:
+                        continue
+                    callback, args, kwargs = result
                     if callback:
                         callback(sock, *args, **kwargs)
 
@@ -166,7 +171,6 @@ class Epoll(IOLoop):
 def get_ioloop(name="select"):
     if name == "epoll":
         return Epoll()
-    elif name == "select":
+    if name == "select":
         return Select()
-    else:
-        return None
+    return None

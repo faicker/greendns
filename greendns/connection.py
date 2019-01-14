@@ -66,7 +66,7 @@ class UDPConnection(Connection):
 
     def close(self):
         if not self.closed:
-            self.io_engine.unregister(self.sock)
+            self.io_engine.on_close_sock(self.sock)
             self.sock.close()
             self.closed = True
 
@@ -148,7 +148,7 @@ class TCPConnection(Connection):
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 2)
 
     def __close(self):
-        self.io_engine.unregister(self.sock)
+        self.io_engine.on_close_sock(self.sock)
         self.sock.close()
         self.closed = True
 
@@ -276,7 +276,10 @@ class TCPConnection(Connection):
                                   self.bind_addr[0], self.bind_addr[1],
                                   self.remote_addr[0], self.remote_addr[1],
                                   len(self.recved_buf))
-            cerr = ConnError(E_OK, "")
+                cerr = ConnError(E_OK, "")
+            else:
+                self.__close()
+                cerr = ConnError(E_FAIL, "connection closed")
         except socket.error as err:
             if err.args[0] in (errno.EAGAIN, errno.EWOULDBLOCK):
                 return

@@ -65,8 +65,7 @@ class TestIOLoop:
         print("server addr is %s:%d" %(server_addr[0], server_addr[1]))
         parent_conn, child_conn = Pipe()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        iol.register(sock, ioloop.EV_WRITE, self.write_func, iol, server_addr)
-        iol.register(sock, ioloop.EV_READ, self.read_func, child_conn)
+        iol.register(sock, ioloop.EV_WRITE, self.write_func, iol, server_addr, child_conn)
         p = Process(target=iol.run)
         p.start()
         assert parent_conn.recv()
@@ -76,9 +75,10 @@ class TestIOLoop:
         os.kill(p.pid, signal.SIGINT)
         p.join()
 
-    def write_func(self, sock, iol, server_addr):
+    def write_func(self, sock, iol, server_addr, child_conn):
         sock.sendto(b"hello\n", server_addr)
         iol.unregister(sock, ioloop.EV_WRITE)
+        iol.register(sock, ioloop.EV_READ, self.read_func, child_conn)
 
     def read_func(self, sock, child_conn):
         (data, _) = sock.recvfrom(1024)
