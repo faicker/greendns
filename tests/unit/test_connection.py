@@ -132,8 +132,7 @@ def test_tcp_client(tcp_server_process):
     client.aconnect(server_addr, on_connected)
     client.run()
 
-@pytest.fixture
-def my_tcp_server():
+def start_tcp_server():
     io_engine = ioloop.get_ioloop("select")
     server = connection.TCPConnection(io_engine=io_engine)
     server.bind(("127.0.0.1", random.randint(20000, 30000)))
@@ -148,24 +147,33 @@ def my_tcp_server():
         assert err.errcode == connection.E_OK
         newconn.arecv(2000, on_recved)
     server.accept(on_connected)
-    p = Process(target=server.run)
-    p.start()
-    yield server.bind_addr
-    os.kill(p.pid, signal.SIGINT)
-    p.join()
+    pcs = Process(target=server.run)
+    pcs.start()
+    return (server.bind_addr, pcs)
 
-def test_tcp_server(my_tcp_server):
-    server_addr = my_tcp_server
+@pytest.fixture
+def my_tcp_server():
+    bind_addr, pcs = start_tcp_server()
+    yield bind_addr
+    os.kill(pcs.pid, signal.SIGINT)
+    pcs.join()
+
+def test_tcp_server():
+    server_addr, pcs = start_tcp_server()
+    time.sleep(1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(server_addr)
     sock.send(b'a' * 2000)
     data = sock.recv(2000)
     sock.shutdown(socket.SHUT_RDWR)
     sock.close()
+    os.kill(pcs.pid, signal.SIGINT)
+    pcs.join()
     assert data == b'a' * 2000
 
 def test_tcp_bind(my_tcp_server):
     server_addr = my_tcp_server
+    time.sleep(1)
     io_engine = ioloop.get_ioloop("select")
     server = connection.TCPConnection(io_engine=io_engine)
     with pytest.raises(connection.BindException):

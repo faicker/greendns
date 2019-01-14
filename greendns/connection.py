@@ -169,13 +169,15 @@ class TCPConnection(Connection):
             self.sock.close()
             raise BindException()
         self.bind_addr = self.sock.getsockname()
-        self.logger.debug("bind to tcp %s:%d", self.bind_addr[0], self.bind_addr[1])
+        self.logger.debug("bind to tcp %s:%d",
+                          self.bind_addr[0], self.bind_addr[1])
         self.sock.listen(512)
 
     # server use
     def accept(self, on_connected, *args, **kwargs):
         self.io_engine.register(self.sock, ioloop.EV_READ,
-                                self.__handle_accept, on_connected, *args, **kwargs)
+                                self.__handle_accept, on_connected,
+                                *args, **kwargs)
 
     # new connection
     def __handle_accept(self, sock, on_connected, *args, **kwargs):
@@ -189,8 +191,7 @@ class TCPConnection(Connection):
         conn.sock = newsock
         conn.set_keepalive()
         if on_connected:
-            on_connected(conn, ConnError(E_OK, ""),
-                         *args, **kwargs)
+            on_connected(conn, ConnError(E_OK, ""), *args, **kwargs)
 
     # client use
     def aconnect(self, remote_addr, on_connected, *args, **kwargs):
