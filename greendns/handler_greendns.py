@@ -249,18 +249,18 @@ class GreenDNSHandler(handler_base.HandlerBase):
         header.id = new_tid
 
     def __shuffer_A(self, resp):
-        beg, end = 0, 0
+        beg, end = -1, 0
         rr_A, rr_other = [], []
         for idx, rr in enumerate(resp.rr):
             if rr.rtype == dnslib.QTYPE.A:
                 rr_A.append(rr)
-                if not beg:
+                if beg < 0:
                     beg = idx
                 else:
                     end = idx
             else:
                 rr_other.append(rr)
-        if beg > 0 and end == len(resp.rr) - 1:
+        if len(rr_A) > 1 and beg >= 0 and end == len(resp.rr) - 1:
             random.shuffle(rr_A)
             resp.rr = rr_other + rr_A
 
@@ -268,8 +268,9 @@ class GreenDNSHandler(handler_base.HandlerBase):
         l = []
         for k, (v, _) in self.cache.iteritems():
             for rr in v.rr:
-                rr.ttl -= 1
-                if rr.ttl == 0:
+                if rr.ttl <= 1:
                     l.append(k)
+                else:
+                    rr.ttl -= 1
         for k in l:
             self.cache.remove(k)
