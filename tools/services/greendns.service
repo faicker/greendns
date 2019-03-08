@@ -7,7 +7,7 @@ Type=simple
 Restart=on-failure
 User=root
 LimitNOFILE=32768
-ExecStart=greendns -p 127.0.0.1:53 -r greendns -l info -f etc/greendns/localroute.txt -b etc/greendns/iplist.txt --cache --rfc1918
+ExecStart=greendns -p 127.0.0.1:53 -r greendns --cache --rfc1918
 
 [Install]
 WantedBy=multi-user.target

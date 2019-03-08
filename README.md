@@ -39,10 +39,30 @@ It has two assumptions,
 pip install greendns
 ```
 
-## Usage
+## Run
+
+### terminal command
 
 ```bash
-greendns -r greendns -f etc/greendns/localroute.txt -b etc/greendns/iplist.txt
+greendns -r greendns
+```
+
+### daemon service
+
+go to [services](tools/services)
+
+### Dockerfile
+
+go to [Dockerfile](tools/docker)
+
+### docker stack (recommended)
+
+go to [greendns-stack](https://github.com/faicker/greendns-stack)
+
+## Test
+
+```bash
+dig www.google.com @127.0.0.1 -p1053
 ```
 
 ## Configure
@@ -78,6 +98,16 @@ optional arguments:
   --rfc1918             Specify if rfc1918 ip is local (default: False)
   --cache               Specify if cache is enabled (default: False)
 ```
+
+## Perf
+
+### perf test result
+
+[perf.md](tests/perf.md)
+
+### profile
+
+[prof.md](tests/prof.md)
 
 ## Acknowledgements
 

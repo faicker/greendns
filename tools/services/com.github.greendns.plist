@@ -20,11 +20,8 @@
         <string>greendns</string>
         <string>-l</string>
         <string>info</string>
-        <string>-f</string>
-        <string>etc/greendns/localroute.txt</string>
-        <string>-b</string>
-        <string>etc/greendns/iplist.txt</string>
         <string>--cache</string>
+        <string>--rfc1918</string>
     </array>
     <key>StandardOutPath</key>
     <string>var/log/greendns.log</string>
