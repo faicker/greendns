@@ -1,13 +1,14 @@
 [![Package](https://img.shields.io/pypi/v/greendns.svg)](https://pypi.python.org/pypi/greendns)
 [![Build Status](https://travis-ci.org/faicker/greendns.svg?branch=master)](https://travis-ci.org/faicker/greendns)
 [![Coverage Status](https://coveralls.io/repos/github/faicker/greendns/badge.svg?branch=master)](https://coveralls.io/github/faicker/greendns?branch=master)
-[![CodeHealth](https://landscape.io/github/faicker/greendns/master/landscape.svg?style=flat)](https://landscape.io/github/faicker/greendns/master)
 
 # greendns
 
-A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time and don't wait for all responses. It's more efficient and quicker than [ChinaDNS](https://github.com/shadowsocks/ChinaDNS)
+A DNS recursive resolve server to avoid result being poisoned and friendly to CDN. It will qeury dns servers at the same time and don't wait for all responses. It's more efficient and quicker than [ChinaDNS](https://github.com/shadowsocks/ChinaDNS).
 
-You must config at least two dns servers. One part is local and poisoned, the other part is unpoisoned(tunnel through VPN or use OpenDNS 443/5353 port, [dnscrypt-proxy](https://github.com/jedisct1/dnscrypt-proxy) is recommended)
+CDN-friendly means the resolved IP is the best(Same ISP and the nearest). The Foreign DNS with edns-client-subnet returned IP is not that accurate, especially for the local small ISP.
+
+You must config at least two dns servers. One part is local and poisoned, the other part is unpoisoned(tunnel through VPN or use OpenDNS 443/5353 port, [dnscrypt-proxy](https://github.com/jedisct1/dnscrypt-proxy) is recommended).
 
 ## How it works
 
@@ -101,7 +102,7 @@ optional arguments:
 
 ## Perf
 
-### perf test result
+### benchmark result
 
 [perf.md](tests/perf.md)
 
