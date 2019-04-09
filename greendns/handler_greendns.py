@@ -58,7 +58,7 @@ class GreenDNSHandler(handler_base.HandlerBase):
                             default="223.5.5.5:53,114.114.114.114:53")
         parser.add_argument("--rds",
                             help="Specify unpoisoned dns servers",
-                            default="tcp:208.67.222.220:443,193.112.15.186:2323")
+                            default="tcp:208.67.222.220:5353,101.132.183.99:2323")
         parser.add_argument("-f", "--localroute", dest="localroute",
                             type=argparse.FileType('r'),
                             default="%s/etc/greendns/localroute.txt" % (program_dir),

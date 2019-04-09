@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 import socket
 import logging
 import errno
@@ -143,9 +144,10 @@ class TCPConnection(Connection):
 
     def set_keepalive(self):
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 2)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 2)
+        if sys.platform == 'linux':
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 2)
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 2)
 
     def __close(self):
         self.io_engine.on_close_sock(self.sock)
