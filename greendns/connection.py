@@ -132,7 +132,7 @@ class UDPConnection(Connection):
                               self.bind_addr[0], self.bind_addr[1], err)
             cerr = ConnError(E_FAIL, str(err))
         if on_recved:
-            on_recved(self, remote_addr, data, cerr, *args, **kwargs)
+            on_recved(self, self.remote_addr, data, cerr, *args, **kwargs)
 
 class TCPConnection(Connection):
     def __init__(self, *args, **kwargs):
@@ -156,7 +156,6 @@ class TCPConnection(Connection):
 
     def close(self):
         if not self.closed:
-            self.sock.shutdown(socket.SHUT_RDWR)
             self.__close()
 
     # server use
@@ -204,7 +203,7 @@ class TCPConnection(Connection):
         try:
             self.sock.connect(self.remote_addr)
         except socket.error as err:
-            if err.args[0] != errno.EINPROGRESS:
+            if err.args[0] not in (errno.EINPROGRESS, errno.EWOULDBLOCK):
                 self.logger.error("tcp connect to %s:%d failed. error=%s",
                                   self.remote_addr[0], self.remote_addr[1],
                                   err)
@@ -214,7 +213,7 @@ class TCPConnection(Connection):
                                  *args, **kwargs)
                 return
         self.bind_addr = self.sock.getsockname()
-        self.io_engine.register(self.sock, ioloop.EV_WRITE,
+        self.io_engine.register(self.sock, ioloop.EV_READ|ioloop.EV_WRITE,
                                 self.__handle_aconnect,
                                 on_connected, *args, **kwargs)
 
@@ -223,7 +222,7 @@ class TCPConnection(Connection):
         self.logger.debug("tcp %s:%d connected to %s:%d",
                           self.bind_addr[0], self.bind_addr[1],
                           self.remote_addr[0], self.remote_addr[1])
-        self.io_engine.unregister(self.sock, ioloop.EV_WRITE)
+        self.io_engine.unregister(self.sock, ioloop.EV_READ|ioloop.EV_WRITE)
         if on_connected:
             on_connected(self, ConnError(E_OK, ""), *args, **kwargs)
 

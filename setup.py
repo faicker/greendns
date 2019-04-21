@@ -34,7 +34,6 @@ setup(name='greendns',
           ],
       },
       packages=find_packages(exclude=['tests', 'tools', 'etc']),
-      data_files=[('etc/greendns/', ['etc/greendns/localroute.txt']),
-                  ('etc/greendns/', ['etc/greendns/iplist.txt'])],
+      include_package_data=True,
       zip_safe=False,
       install_requires=requires)

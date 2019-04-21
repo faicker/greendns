@@ -5,6 +5,7 @@ import logging
 import argparse
 import dnslib
 import random
+from pkg_resources import resource_filename
 from greendns import session
 from greendns import connection
 from greendns import localnet
@@ -51,8 +52,6 @@ class GreenDNSHandler(handler_base.HandlerBase):
         self.unpoisoned_servers = []
 
     def add_arg(self, parser):
-        cwd = os.path.dirname(os.path.realpath(__file__))
-        program_dir = os.path.abspath(cwd + "/../../../../")
         parser.add_argument("--lds",
                             help="Specify local poisoned dns servers",
                             default="223.5.5.5:53,114.114.114.114:53")
@@ -61,11 +60,11 @@ class GreenDNSHandler(handler_base.HandlerBase):
                             default="tcp:208.67.222.220:5353,101.132.183.99:2323")
         parser.add_argument("-f", "--localroute", dest="localroute",
                             type=argparse.FileType('r'),
-                            default="%s/etc/greendns/localroute.txt" % (program_dir),
+                            default=resource_filename(__name__, 'data/localroute.txt'),
                             help="Specify local routes file")
         parser.add_argument("-b", "--blacklist", dest="blacklist",
                             type=argparse.FileType('r'),
-                            default="%s/etc/greendns/iplist.txt" % (program_dir),
+                            default=resource_filename(__name__, 'data/iplist.txt'),
                             help="Specify ip blacklist file")
         parser.add_argument("--rfc1918", dest="rfc1918", action="store_true",
                             help="Specify if rfc1918 ip is local")

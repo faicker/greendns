@@ -3,7 +3,9 @@ include MANIFEST.in
 include README.md
 recursive-include util *
 recursive-include tests *
-graft etc
+recursive-include tools *
+graft greendns/data
 global-exclude *~
 global-exclude *.pyc
 global-exclude .gitignore
+global-exclude *.png *.profile

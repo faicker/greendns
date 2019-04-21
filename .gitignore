@@ -5,3 +5,5 @@ build/
 *.pyc
 .*
 Pipfile.lock
+*.png
+*.profile
