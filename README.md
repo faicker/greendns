@@ -89,7 +89,7 @@ optional arguments:
   --lds LDS             Specify local poisoned dns servers (default:
                         223.5.5.5:53,114.114.114.114:53)
   --rds RDS             Specify unpoisoned dns servers (default:
-                        tcp:208.67.222.220:5353,101.132.183.99:2323)
+                        tcp:208.67.222.220:5353,91.239.100.100:5353)
   -f LOCALROUTE, --localroute LOCALROUTE
                         Specify local routes file (default:
                         /home/etc/greendns/localroute.txt)

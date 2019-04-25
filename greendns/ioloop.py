@@ -77,7 +77,7 @@ class Select(IOLoop):
         self.unregister(sock)
 
     def run(self):
-        if self.rlist and self.wlist:
+        if not self.rlist and not self.wlist:
             return
         while self.running:
             self.check_timer()

@@ -7,6 +7,7 @@ import inspect
 import argparse
 from greendns import forwarder
 from greendns import ioloop
+from greendns import __version__
 
 
 PKG_NAME = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -69,6 +70,7 @@ class GreenDNS(object):
     '''
     def __init__(self):
         self.args = None
+        self.logger = None
 
     def parse_config(self, argv):
         parser = argparse.ArgumentParser(
@@ -120,8 +122,10 @@ class GreenDNS(object):
         if self.args and hasattr(self.args, "loglevel"):
             loglevel = self.args.loglevel
         logger.setLevel(str2level[loglevel])
+        self.logger = logger
 
     def init_forwarder(self):
+        self.logger.info("GreenDNS %s", __version__)
         io_engine = ioloop.get_ioloop(self.args.mode)
         h = self.args.handler
         upstreams = h.init(io_engine)

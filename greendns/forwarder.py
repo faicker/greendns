@@ -19,6 +19,7 @@ class Forwarder(object):
         self.server = connection.UDPConnection(io_engine=self.io_engine)
         try:
             ip, port = listen.split(':')
+            self.logger.info("binding to udp %s", listen)
             self.server.bind((ip, int(port)))
             self.listen_addr = self.server.bind_addr
         except connection.BindException:
@@ -143,4 +144,5 @@ class Forwarder(object):
     def run_forever(self):
         self.io_engine.add_timer(False, self.timeout, self.check_timeout)
         self.server.arecv(self.handle_request_from_client)
+        self.logger.info("waiting for requests")
         self.server.run()

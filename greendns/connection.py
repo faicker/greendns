@@ -84,8 +84,7 @@ class UDPConnection(Connection):
 
     # client or server use
     def send(self, remote_addr, data):
-        if not self.remote_addr:
-            self.remote_addr = remote_addr
+        self.remote_addr = remote_addr
         try:
             self.sock.sendto(data, remote_addr)
             if not self.bind_addr:
@@ -118,10 +117,11 @@ class UDPConnection(Connection):
     def __handle_arecv(self, sock, on_recved, *args, **kwargs):
         assert self.sock == sock
         cerr = None
+        remote_addr = None
+        data = None
         try:
             data, remote_addr = self.sock.recvfrom(self.recv_buffer_size)
-            if not self.remote_addr:
-                self.remote_addr = remote_addr
+            self.remote_addr = remote_addr
             self.logger.debug("udp %s:%d recvfrom %s:%d, data len=%d",
                               self.bind_addr[0], self.bind_addr[1],
                               remote_addr[0], remote_addr[1],
@@ -132,7 +132,7 @@ class UDPConnection(Connection):
                               self.bind_addr[0], self.bind_addr[1], err)
             cerr = ConnError(E_FAIL, str(err))
         if on_recved:
-            on_recved(self, self.remote_addr, data, cerr, *args, **kwargs)
+            on_recved(self, remote_addr, data, cerr, *args, **kwargs)
 
 class TCPConnection(Connection):
     def __init__(self, *args, **kwargs):

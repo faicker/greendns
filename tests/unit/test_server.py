@@ -193,14 +193,17 @@ def test_run_with_greendns_handler(udp_server_process):
     p = Process(target=server.run, args=(argv,))
     p.start()
     time.sleep(0.5)
-    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    q = dnslib.DNSRecord.question(qname)
-    client.sendto(bytes(q.pack()), forward_addr)
-    time.sleep(0.5)
-    data, _ = client.recvfrom(1024)
-    d = dnslib.DNSRecord.parse(data)
-    assert str(d.rr[0].rdata) == "101.226.103.106"
-    client.close()
+    # first
+    for i in range(3):
+        client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        q = dnslib.DNSRecord.question(qname)
+        client.sendto(bytes(q.pack()), forward_addr)
+        time.sleep(0.5)
+        data, _ = client.recvfrom(1024)
+        d = dnslib.DNSRecord.parse(data)
+        assert str(d.rr[0].rdata) == "101.226.103.106"
+        client.close()
+
     os.kill(p.pid, signal.SIGINT)
     p.join()
 
