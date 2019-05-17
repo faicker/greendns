@@ -44,12 +44,13 @@ class Forwarder(object):
             if now < sess.send_ts + self.timeout:
                 continue
             if conn.bind_addr and conn.remote_addr:
-                self.logger.warning("%s:%d request %s:%d to upstream timeout",
+                self.logger.warning("[sid=%d] %s:%d request %s:%d to upstream timeout",
+                                    sess.sid,
                                     conn.bind_addr[0], conn.bind_addr[1],
                                     conn.remote_addr[0], conn.remote_addr[1])
                 conn.close()
             else:
-                self.logger.warning("no bind addr")
+                self.logger.warning("[sid=%d] no bind addr", sess.sid)
             to_delete.append(conn)
         for conn in to_delete:
             del self.sessions[conn]
@@ -68,7 +69,7 @@ class Forwarder(object):
             self.send_response(sess.client_addr, resp)
             return
         if not is_continue:
-            self.logger.error("invalid request from client")
+            self.logger.error("[sid=%d] invalid request from client", sess.sid)
             return
         for addr in self.upstreams:
             remote_addr = addr[1], addr[2]
@@ -79,7 +80,7 @@ class Forwarder(object):
                 conn = connection.TCPConnection(io_engine=self.io_engine)
                 conn.aconnect(remote_addr, self.handle_tcp_connected)
             else:
-                self.logger.error("invalid protocol %s", addr.protocol)
+                self.logger.error("[sid=%d] invalid protocol %s", sess.sid, addr.protocol)
                 continue
             if conn:
                 self.sessions[conn] = sess

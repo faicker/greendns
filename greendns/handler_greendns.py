@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-import os
 import logging
 import argparse
-import dnslib
 import random
+import dnslib
 from pkg_resources import resource_filename
 from greendns import session
 from greendns import connection
@@ -57,7 +56,7 @@ class GreenDNSHandler(handler_base.HandlerBase):
                             default="223.5.5.5:53,114.114.114.114:53")
         parser.add_argument("--rds",
                             help="Specify unpoisoned dns servers",
-                            default="tcp:208.67.222.220:5353,91.239.100.100:5353")
+                            default="tcp:208.67.222.220:5353,9.9.9.9:9953")
         parser.add_argument("-f", "--localroute", dest="localroute",
                             type=argparse.FileType('r'),
                             default=resource_filename(__name__, 'data/localroute.txt'),
@@ -99,7 +98,7 @@ class GreenDNSHandler(handler_base.HandlerBase):
             io_engine.add_timer(False, 1, self.__decrease_ttl_one)
 
         self.logger.info("using local servers: %s", self.local_servers)
-        self.logger.info("unsing unpoisoned servers: %s", self.unpoisoned_servers)
+        self.logger.info("using unpoisoned servers: %s", self.unpoisoned_servers)
         return self.local_servers + self.unpoisoned_servers
 
     def new_session(self):
@@ -110,44 +109,40 @@ class GreenDNSHandler(handler_base.HandlerBase):
         try:
             d = dnslib.DNSRecord.parse(sess.req_data)
         except Exception as e:
-            self.logger.error("parse request error, msg=%s, data=%s",
-                              e, sess.req_data)
+            self.logger.error("[sid=%d] parse request error, msg=%s, data=%s",
+                              sess.sid, e, sess.req_data)
             return (is_continue, raw_resp)
-        self.logger.debug("request detail,\n%s", d)
-        if len(d.questions) == 0:
+        self.logger.debug("[sid=%d] request detail,\n%s", sess.sid, d)
+        if not d.questions:
             return (is_continue, raw_resp)
         qtype = d.questions[0].qtype
         qname = str(d.questions[0].qname)
         tid = d.header.id
-        self.logger.info("received request, name=%s, type=%s, id=%d",
-                         qname, dnslib.QTYPE.get(qtype), tid)
+        self.logger.info("[sid=%d] received request, name=%s, type=%s, id=%d",
+                         sess.sid, qname, dnslib.QTYPE.get(qtype), tid)
         if self.cache_enabled:
             resp = self.cache.find((qname, qtype))
             if resp:
                 self.__replace_id(resp.header, tid)
                 if qtype == dnslib.QTYPE.A:
                     self.__shuffer_A(resp)
-                self.logger.info("cache hit")
-                self.logger.debug("response detail,\n%s", resp)
+                self.logger.info("[sid=%d] cache hit", sess.sid)
+                self.logger.debug("[sid=%d] response detail,\n%s", sess.sid, resp)
                 return (is_continue, bytes(resp.pack()))
         sess.qtype, sess.qname = qtype, qname
         is_continue = True
         return (is_continue, raw_resp)
 
     def on_upstream_response(self, sess, addr):
-        if sess.qtype == dnslib.QTYPE.A:
-            return self.__handle(sess, addr)
-        else:
-            #using the first answer from local server
-            if addr in self.local_servers:
-                return self.__handle(sess, addr)
-            return ""
-
-    def __handle(self, sess, addr):
+        resp = None
         if sess.qtype == dnslib.QTYPE.A:
             resp = self.__handle_A(sess, addr)
         else:
-            resp = self.__handle_other(sess, addr)
+            #using the first answer from local server for other qtype
+            if addr in self.local_servers:
+                self.logger.info("[sid=%d] %s:%s:%d answer used",
+                                 sess.sid, addr[0], addr[1], addr[2])
+                resp = self.__handle_other(sess, addr)
         if resp:
             if self.cache_enabled and resp.rr:
                 for answer in resp.rr:
@@ -155,8 +150,9 @@ class GreenDNSHandler(handler_base.HandlerBase):
                         ttl = answer.ttl
                         self.cache.add((sess.qname, sess.qtype), resp, ttl)
                         self.logger.info(
-                            "add to cache, key=(%s, %s), ttl=%d",
-                            sess.qname, dnslib.QTYPE.get(sess.qtype), ttl)
+                            "[sid=%d] add to cache, key=(%s, %s), ttl=%d",
+                            sess.sid, sess.qname, dnslib.QTYPE.get(sess.qtype),
+                            ttl)
                         break
             return bytes(resp.pack())
         return ""
@@ -167,11 +163,12 @@ class GreenDNSHandler(handler_base.HandlerBase):
             return None
         try:
             d = dnslib.DNSRecord.parse(data)
-            self.logger.debug("%s:%s:%d response detail,\n%s", addr[0], addr[1], addr[2], d)
+            self.logger.debug("[sid=%d] %s:%s:%d response detail,\n%s",
+                              sess.sid, addr[0], addr[1], addr[2], d)
             return d
         except Exception as e:
-            self.logger.error("parse response error, msg=%s, data=%s",
-                              e, data)
+            self.logger.error("[sid=%d] parse response error, msg=%s, data=%s",
+                              sess.sid, e, data)
             return None
 
     def __handle_A(self, sess, addr):
@@ -181,14 +178,14 @@ class GreenDNSHandler(handler_base.HandlerBase):
         try:
             d = dnslib.DNSRecord.parse(data)
         except Exception as e:
-            self.logger.error("parse response error, err=%s, data=%s",
-                              e, data)
+            self.logger.error("[sid=%d] parse response error, err=%s, data=%s",
+                              sess.sid, e, data)
             return None
         str_ip = self.__parse_A(d)
-        self.logger.info("%s:%s:%d answered ip=%s", addr[0], addr[1], addr[2], str_ip)
-        self.logger.debug("%s:%s:%d response detail,\n%s", addr[0], addr[1], addr[2], d)
+        self.logger.info("[sid=%d] %s:%s:%d answered ip=%s", sess.sid, addr[0], addr[1], addr[2], str_ip)
+        self.logger.debug("[sid=%d] %s:%s:%d response detail,\n%s", sess.sid, addr[0], addr[1], addr[2], d)
         if self.cnet.is_in_blacklist(str_ip):
-            self.logger.info("ip %s is in blacklist", str_ip)
+            self.logger.info("[sid=%d] ip %s is in blacklist", sess.sid, str_ip)
             sess.is_poisoned = True
             return None
         if addr in self.local_servers:
@@ -199,38 +196,40 @@ class GreenDNSHandler(handler_base.HandlerBase):
                 if self.cnet.is_in_local(str_ip):
                     sess.matrix[0][0] = 1
                     self.logger.info(
-                        "local server %s:%s:%d returned local addr %s",
-                        addr[0], addr[1], addr[2], str_ip)
+                        "[sid=%d] local server %s:%s:%d returned local addr %s",
+                        sess.sid, addr[0], addr[1], addr[2], str_ip)
                 else:
                     sess.matrix[0][1] = 1
                     self.logger.info(
-                        "local server %s:%s:%d returned foreign addr %s",
-                        addr[0], addr[1], addr[2], str_ip)
+                        "[sid=%d] local server %s:%s:%d returned foreign addr %s",
+                        sess.sid, addr[0], addr[1], addr[2], str_ip)
         elif addr in self.unpoisoned_servers:
             if sess.unpoisoned_result:
                 return None
             sess.unpoisoned_result = d
         else:
-            self.logger.warning("unexpected answer from unknown server")
+            self.logger.warning(
+                "[sid=%d] unexpected answer from unknown server", sess.sid)
             return None
-        return self.__make_response(sess.local_result,
+        return self.__make_response(sess.sid,
+                                    sess.local_result,
                                     sess.unpoisoned_result,
                                     sess.matrix,
                                     sess.is_poisoned)
 
-    def __make_response(self, local_result, unpoisoned_result, m, is_poisoned):
+    def __make_response(self, sid, local_result, unpoisoned_result, m, is_poisoned):
         # calculate
         resp = None
         if m[0][0]:
             resp = local_result
-            self.logger.info("using local result")
+            self.logger.info("[sid=%d] using local result", sid)
         elif m[0][1] or is_poisoned:
             resp = unpoisoned_result
-            self.logger.info("using unpoisoned result")
+            self.logger.info("[sid=%d] using unpoisoned result", sid)
         elif local_result:
             # empty body, no IP
             resp = unpoisoned_result
-            self.logger.info("using unpoisoned result")
+            self.logger.info("[sid=%d] using unpoisoned result", sid)
         return resp
 
     def __parse_A(self, record):
