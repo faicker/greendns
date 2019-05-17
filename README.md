@@ -54,7 +54,7 @@ go to [services](tools/services)
 
 ### Dockerfile
 
-go to [Dockerfile](tools/docker)
+go to [greendns-container](https//github.com/faicker/greendns-container)
 
 ### docker stack (recommended)
 
