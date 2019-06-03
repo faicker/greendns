@@ -38,7 +38,6 @@ def load_mod(mod, submod):
 
 
 def check_handler(value):
-    h = None
     HANDLER_PREFIX = "handler_"
     name = HANDLER_PREFIX + "base"
     base_mod = load_mod(PKG_NAME, name)
@@ -60,8 +59,7 @@ def check_handler(value):
         cls = getattr(mod, v)
         if inspect.isclass(cls) and issubclass(cls, base_cls):
             return cls()
-    if h is None:
-        raise argparse.ArgumentTypeError("%s is an invalid handler" % value)
+    raise argparse.ArgumentTypeError("%s is an invalid handler" % value)
 
 
 class GreenDNS(object):

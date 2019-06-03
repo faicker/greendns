@@ -110,3 +110,15 @@ def test_forwarder_timeout(running_process_timeout):
         client.recvfrom(1024)
     client.close()
     assert not forwarder.sessions
+
+def test_forwarder_bind(forwarder):
+    io_engine = ioloop.get_ioloop("select")
+    addr1 = Addr("udp", "1.1.1.1", 53)
+    addr2 = Addr("tcp", "2.2.2.2", 53)
+    upstreams = [addr1, addr2]
+    listen = "%s:%d" % (forwarder.listen_addr[0], forwarder.listen_addr[1])
+    timeout = 1.0
+    handler = QuickestHandler()
+    handler.init(io_engine)
+    with pytest.raises(SystemExit):
+        f = Forwarder(io_engine, upstreams, listen, timeout, handler)

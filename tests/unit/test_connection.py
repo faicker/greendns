@@ -37,7 +37,7 @@ def udp_server_process():
     p.terminate()
 
 
-def test_udp_client(udp_server_process):
+def test_udp_client_ok(udp_server_process):
     server_addr = udp_server_process
     io_engine = ioloop.get_ioloop("select")
     client = connection.UDPConnection(io_engine=io_engine)
@@ -54,6 +54,21 @@ def test_udp_client(udp_server_process):
         assert err.errcode == connection.E_OK
 
     client.asend(server_addr, b'x' * 2048, on_sent)
+    client.run()
+
+def test_udp_client_sent_err(udp_server_process):
+    server_addr = udp_server_process
+    io_engine = ioloop.get_ioloop("select")
+    client = connection.UDPConnection(io_engine=io_engine)
+    client.set_recv_buffer_size(2048)
+
+    def on_sent_err(sock, _, err):
+        client.close()
+        client.stop()
+        assert err.errcode == connection.E_FAIL
+
+    length = 64*1024+1
+    client.asend(server_addr, b'x' * length, on_sent_err)
     client.run()
 
 @pytest.fixture

@@ -8,14 +8,27 @@ from greendns import ioloop
 
 Addr = namedtuple("Addr", "protocol ip port")
 
+def parse_ip(name):
+    return socket.gethostbyname(name)
+
 def parse_addr(addrstr):
     addr = addrstr.split(':')
+    protocol, ip, port = 'udp', '', 53
     if len(addr) == 1:
-        return Addr('udp', addr[0], 53)
-    if len(addr) == 2:
-        return Addr('udp', addr[0], int(addr[1]))
-    if addr[0] in ('udp', 'tcp'):
-        return Addr(addr[0], addr[1], int(addr[2]))
+        # ip
+        ip = parse_ip(addr[0])
+    elif len(addr) == 2:
+        # ip:port
+        ip = parse_ip(addr[0])
+        port = int(addr[1])
+    elif addr[0] in ('udp', 'tcp'):
+        # protocol:ip:port
+        protocol = addr[0]
+        ip = parse_ip(addr[1])
+        port = int(addr[2])
+
+    if protocol and ip and port:
+        return Addr(protocol, ip, port)
     return None
 
 class BindException(Exception):
@@ -38,7 +51,7 @@ class ConnError(Error):
 class Connection(object):
     def __init__(self, logger=None, io_engine=None):
         self.io_engine = io_engine
-        self.remote_addr = None     # meaningless for udp server
+        self.remote_addr = None     # meaningless for udp
         self.bind_addr = None
         self.closed = False
         self.logger = logger if logger else logging.getLogger()
@@ -96,7 +109,6 @@ class UDPConnection(Connection):
             cerr = ConnError(E_OK, "")
         except socket.error as err:
             self.logger.error("udp sendto %s:%d failed. error=%s",
-                              self.bind_addr[0], self.bind_addr[1],
                               remote_addr[0], remote_addr[1], err)
             cerr = ConnError(E_FAIL, str(err))
         return cerr
